@@ -73,3 +73,49 @@ def delete_showtime(showtime_id: int):
     """
     # TODO: Connect to DB and DELETE record WHERE ShowtimeID = showtime_id
     return {"message": f"Showtime {showtime_id} deleted successfully"}
+
+# user endpoints
+
+@app.get("/api/movies", response_model=List[schemas.MovieResponse], tags=["User - Cinema"])
+def search_movies(name: str = None, date: str = None, branch: str = None):
+    """
+    User Function: Search Movie and Showtime
+    """
+    # TODO: Connect to DB and SELECT with filters
+    return [
+        # example from report
+        {
+            "MID": 1,
+            "MName": "Jujutsu Kaisen 0",
+            "Genre": "Action",
+            "Duration": 105,
+            "AgeRating": "PG-13",
+            "ReleaseDate": "2026-04-14",
+            "AID": 1
+        }
+    ]
+
+@app.get("/api/showtimes/{showtime_id}/seats", response_model=List[schemas.SeatResponse], tags=["User - Cinema"])
+def check_available_seats(showtime_id: int):
+    """
+    User Function: Check Available Seat)
+    """
+    # TODO: Connect to DB and SELECT * FROM Seat WHERE ThID = ...
+    return [
+        {
+            "SeatID": 5001,
+            "SeatStatus": "Available",
+            "SeatRow": "A",
+            "SeatNumber": 12,
+            "SeatType": "Standard",
+            "ThID": 101
+        },
+        {
+            "SeatID": 5002,
+            "SeatStatus": "Booked",
+            "SeatRow": "A",
+            "SeatNumber": 13,
+            "SeatType": "Standard",
+            "ThID": 101
+        }
+    ]
