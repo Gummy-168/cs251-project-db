@@ -3,7 +3,6 @@ from sqlalchemy import text
 from database import engine
 from typing import List
 import schemas
-
 app = FastAPI()
 
 @app.get("/api/db-test")
