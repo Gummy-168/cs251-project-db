@@ -1,34 +1,53 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, status
+from sqlalchemy.orm import Session
 from sqlalchemy import text
-from database import engine
+from database import engine, SessionLocal
 from typing import List
-import schemas
+import models, schemas
+
+# Initialize database tables
+# TODO: Uncomment this when database choice is finalized to auto-create tables
+# models.Base.metadata.create_all(bind=engine)
+
 app = FastAPI()
 
-@app.get("/api/db-test")
-def db_test():
-    with engine.connect() as conn:
-        conn.execute(text("SELECT 1"))
-    return {"message": "MySQL connected successfully"}
+# Dependency to get DB session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-# Admin Endpoints
-# Add, Edit, Delete for Movie
-@app.post("/api/admin/movies", response_model=schemas.MovieResponse, tags=["Admin - Movie"])
-def create_movie(movie: schemas.MovieCreate):
+@app.get("/api/db-test")
+def db_test(db: Session = Depends(get_db)):
+    """
+    Test connection to the database
+    """
+    try:
+        db.execute(text("SELECT 1"))
+        return {"message": "Database connected successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+
+# Admin Endpoints - Movie
+
+@app.post("/api/admin/movies", response_model=schemas.MovieResponse, tags=["Admin - Movie"], status_code=status.HTTP_201_CREATED)
+def create_movie(movie: schemas.MovieCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Movie
+    TODO: Database Team Logic (models.Movie(**movie.model_dump()) -> db.add -> db.commit)
     """
-    # TODO: Connect to DB and INSERT record
-    # Mocking ID for now
-    return {**movie.model_dump(), "MID": 999}
+    # MOCK DATA: Replace with real database output
+    return {**movie.model_dump(), "MID": 999, "ScoreRating": 0.0, "AID": 1}
 
 @app.put("/api/admin/movies/{movie_id}", response_model=schemas.MovieResponse, tags=["Admin - Movie"])
-def update_movie(movie_id: int, movie: schemas.MovieUpdate):
+def update_movie(movie_id: int, movie: schemas.MovieUpdate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Movie
+    TODO: Database Team Logic (db.query(models.Movie).update -> db.commit)
     """
-    # TODO: Connect to DB and UPDATE record WHERE MID = movie_id
-    # Mocking response
+    # MOCK DATA: Replace with real database output
     return {
         "MID": movie_id,
         "MName": movie.MName or "Updated Name",
@@ -39,50 +58,53 @@ def update_movie(movie_id: int, movie: schemas.MovieUpdate):
         "AID": 1
     }
 
-@app.delete("/api/admin/movies/{movie_id}", tags=["Admin - Movie"])
-def delete_movie(movie_id: int):
+@app.delete("/api/admin/movies/{movie_id}", tags=["Admin - Movie"], status_code=status.HTTP_204_NO_CONTENT)
+def delete_movie(movie_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Movie
+    TODO: Database Team Logic (db.delete WHERE MID = movie_id)
     """
-    # TODO: Connect to DB and DELETE record WHERE MID = movie_id
-    return {"message": f"Movie {movie_id} deleted successfully"}
+    # MOCK SUCCESS: Returns empty 204 response
+    return None
 
-# Admin Endpoints
-# Add, Edit, Delete for Showtime
-@app.post("/api/admin/showtimes", response_model=schemas.ShowtimeResponse, tags=["Admin - Showtime"])
-def create_showtime(showtime: schemas.ShowtimeCreate):
+# Admin Endpoints - Showtime
+
+@app.post("/api/admin/showtimes", response_model=schemas.ShowtimeResponse, tags=["Admin - Showtime"], status_code=status.HTTP_201_CREATED)
+def create_showtime(showtime: schemas.ShowtimeCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Showtime
+    TODO: Database Team Logic
     """
-    # TODO: Connect to DB and INSERT record
+    # MOCK DATA: Replace with real database output
     return {**showtime.model_dump(), "ShowtimeID": 888}
 
 @app.put("/api/admin/showtimes/{showtime_id}", response_model=schemas.ShowtimeResponse, tags=["Admin - Showtime"])
-def update_showtime(showtime_id: int, showtime: schemas.ShowtimeCreate):
+def update_showtime(showtime_id: int, showtime: schemas.ShowtimeCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Showtime
+    TODO: Database Team Logic
     """
-    # TODO: Connect to DB and UPDATE record WHERE ShowtimeID = showtime_id
+    # MOCK DATA: Replace with real database output
     return {**showtime.model_dump(), "ShowtimeID": showtime_id}
 
-@app.delete("/api/admin/showtimes/{showtime_id}", tags=["Admin - Showtime"])
-def delete_showtime(showtime_id: int):
+@app.delete("/api/admin/showtimes/{showtime_id}", tags=["Admin - Showtime"], status_code=status.HTTP_204_NO_CONTENT)
+def delete_showtime(showtime_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Showtime
+    TODO: Database Team Logic
     """
-    # TODO: Connect to DB and DELETE record WHERE ShowtimeID = showtime_id
-    return {"message": f"Showtime {showtime_id} deleted successfully"}
+    return None
 
 # user endpoints
 
 @app.get("/api/movies", response_model=List[schemas.MovieResponse], tags=["User - Cinema"])
-def search_movies(name: str = None, date: str = None, branch: str = None):
+def search_movies(name: str = None, date: str = None, branch: str = None, db: Session = Depends(get_db)):
     """
     User Function: Search Movie and Showtime
+    TODO: Database Team Logic (SELECT with filters)
     """
-    # TODO: Connect to DB and SELECT with filters
+    # MOCK DATA: Replace with real database query output
     return [
-        # example from report
         {
             "MID": 1,
             "MName": "Jujutsu Kaisen 0",
@@ -95,25 +117,18 @@ def search_movies(name: str = None, date: str = None, branch: str = None):
     ]
 
 @app.get("/api/showtimes/{showtime_id}/seats", response_model=List[schemas.SeatResponse], tags=["User - Cinema"])
-def check_available_seats(showtime_id: int):
+def check_available_seats(showtime_id: int, db: Session = Depends(get_db)):
     """
-    User Function: Check Available Seat)
+    User Function: Check Available Seat
+    TODO: Database Team Logic (SELECT * FROM Seat WHERE ThID = ...)
     """
-    # TODO: Connect to DB and SELECT * FROM Seat WHERE ThID = ...
+    # MOCK DATA: Replace with real database query output
     return [
         {
             "SeatID": 5001,
             "SeatStatus": "Available",
             "SeatRow": "A",
             "SeatNumber": 12,
-            "SeatType": "Standard",
-            "ThID": 101
-        },
-        {
-            "SeatID": 5002,
-            "SeatStatus": "Booked",
-            "SeatRow": "A",
-            "SeatNumber": 13,
             "SeatType": "Standard",
             "ThID": 101
         }
