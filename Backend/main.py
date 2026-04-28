@@ -52,7 +52,7 @@ def db_test(db: Session = Depends(get_db)):
 def create_movie(movie: schemas.MovieCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Movie
-    TODO: Database Team Logic (models.Movie(**movie.model_dump()) -> db.add -> db.commit)
+    TODO: Database implement (models.Movie(**movie.model_dump()) -> db.add -> db.commit)
     """
     # MOCK DATA: Replace with real database output
     return {**movie.model_dump(), "MID": 999, "ScoreRating": 0.0, "AID": 1}
@@ -61,7 +61,7 @@ def create_movie(movie: schemas.MovieCreate, db: Session = Depends(get_db)):
 def update_movie(movie_id: int, movie: schemas.MovieUpdate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Movie
-    TODO: Database Team Logic (db.query(models.Movie).update -> db.commit)
+    TODO: Database implement (db.query(models.Movie).update -> db.commit)
     """
     # MOCK DATA: Replace with real database output
     return {
@@ -78,7 +78,7 @@ def update_movie(movie_id: int, movie: schemas.MovieUpdate, db: Session = Depend
 def delete_movie(movie_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Movie
-    TODO: Database Team Logic (db.delete WHERE MID = movie_id)
+    TODO: Database implement (db.delete WHERE MID = movie_id)
     """
     # MOCK SUCCESS: Returns empty 204 response
     return None
@@ -89,7 +89,7 @@ def delete_movie(movie_id: int, db: Session = Depends(get_db)):
 def create_showtime(showtime: schemas.ShowtimeCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Showtime
-    TODO: Database Team Logic
+    TODO: Database implement
     """
     # MOCK DATA: Replace with real database output
     return {**showtime.model_dump(), "ShowtimeID": 888}
@@ -98,7 +98,7 @@ def create_showtime(showtime: schemas.ShowtimeCreate, db: Session = Depends(get_
 def update_showtime(showtime_id: int, showtime: schemas.ShowtimeCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Showtime
-    TODO: Database Team Logic
+    TODO: Database implement
     """
     # MOCK DATA: Replace with real database output
     return {**showtime.model_dump(), "ShowtimeID": showtime_id}
@@ -107,7 +107,91 @@ def update_showtime(showtime_id: int, showtime: schemas.ShowtimeCreate, db: Sess
 def delete_showtime(showtime_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Showtime
-    TODO: Database Team Logic
+    TODO: Database implement
+    """
+    return None
+
+# Admin Endpoints - Branch
+
+@app.post("/api/admin/branches", response_model=schemas.BranchResponse, tags=["Admin - Branch"], status_code=status.HTTP_201_CREATED)
+def create_branch(branch: schemas.BranchCreate, db: Session = Depends(get_db)):
+    """
+    Admin Function: Add Branch
+    TODO: Database implement
+    """
+    # MOCK DATA: Replace with real database output
+    return {**branch.model_dump(), "BID": 1}
+
+@app.put("/api/admin/branches/{branch_id}", response_model=schemas.BranchResponse, tags=["Admin - Branch"])
+def update_branch(branch_id: int, branch: schemas.BranchCreate, db: Session = Depends(get_db)):
+    """
+    Admin Function: Edit Branch
+    TODO: Database implement
+    """
+    # MOCK DATA: Replace with real database output
+    return {**branch.model_dump(), "BID": branch_id}
+
+@app.delete("/api/admin/branches/{branch_id}", tags=["Admin - Branch"], status_code=status.HTTP_204_NO_CONTENT)
+def delete_branch(branch_id: int, db: Session = Depends(get_db)):
+    """
+    Admin Function: Delete Branch
+    TODO: Database implement
+    """
+    return None
+
+# Admin Endpoints - Theater
+
+@app.post("/api/admin/theaters", response_model=schemas.TheaterResponse, tags=["Admin - Theater"], status_code=status.HTTP_201_CREATED)
+def create_theater(theater: schemas.TheaterCreate, db: Session = Depends(get_db)):
+    """
+    Admin Function: Add Theater
+    TODO: Database implement
+    """
+    # MOCK DATA: Replace with real database output
+    return {**theater.model_dump(), "ThID": 101}
+
+@app.put("/api/admin/theaters/{theater_id}", response_model=schemas.TheaterResponse, tags=["Admin - Theater"])
+def update_theater(theater_id: int, theater: schemas.TheaterCreate, db: Session = Depends(get_db)):
+    """
+    Admin Function: Edit Theater
+    TODO: Database implement
+    """
+    # MOCK DATA: Replace with real database output
+    return {**theater.model_dump(), "ThID": theater_id}
+
+@app.delete("/api/admin/theaters/{theater_id}", tags=["Admin - Theater"], status_code=status.HTTP_204_NO_CONTENT)
+def delete_theater(theater_id: int, db: Session = Depends(get_db)):
+    """
+    Admin Function: Delete Theater
+    TODO: Database implement
+    """
+    return None
+
+# Admin Endpoints - Seat
+
+@app.post("/api/admin/seats", response_model=schemas.SeatResponse, tags=["Admin - Seat"], status_code=status.HTTP_201_CREATED)
+def create_seat(seat: schemas.SeatCreate, db: Session = Depends(get_db)):
+    """
+    Admin Function: Add Seat
+    TODO: Database implement
+    """
+    # MOCK DATA: Replace with real database output
+    return {**seat.model_dump(), "SeatID": 5001}
+
+@app.put("/api/admin/seats/{seat_id}", response_model=schemas.SeatResponse, tags=["Admin - Seat"])
+def update_seat(seat_id: int, seat: schemas.SeatCreate, db: Session = Depends(get_db)):
+    """
+    Admin Function: Edit Seat
+    TODO: Database implement
+    """
+    # MOCK DATA: Replace with real database output
+    return {**seat.model_dump(), "SeatID": seat_id}
+
+@app.delete("/api/admin/seats/{seat_id}", tags=["Admin - Seat"], status_code=status.HTTP_204_NO_CONTENT)
+def delete_seat(seat_id: int, db: Session = Depends(get_db)):
+    """
+    Admin Function: Delete Seat
+    TODO: Database implement
     """
     return None
 
@@ -117,7 +201,7 @@ def delete_showtime(showtime_id: int, db: Session = Depends(get_db)):
 def search_movies(name: str = None, date: str = None, branch: str = None, db: Session = Depends(get_db)):
     """
     User Function: Search Movie and Showtime
-    TODO: Database Team Logic (SELECT with filters)
+    TODO: Database implement (SELECT with filters)
     """
     # MOCK DATA: Replace with real database query output
     return [
@@ -136,7 +220,7 @@ def search_movies(name: str = None, date: str = None, branch: str = None, db: Se
 def check_available_seats(showtime_id: int, db: Session = Depends(get_db)):
     """
     User Function: Check Available Seat
-    TODO: Database Team Logic (SELECT * FROM Seat WHERE ThID = ...)
+    TODO: Database implement (SELECT * FROM Seat WHERE ThID = ...)
     """
     # MOCK DATA: Replace with real database query output
     return [
