@@ -7,8 +7,7 @@ from typing import List
 import models, schemas
 
 # Initialize database tables
-# TODO: Uncomment this when database choice is finalized to auto-create tables
-# models.Base.metadata.create_all(bind=engine)
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -52,35 +51,40 @@ def db_test(db: Session = Depends(get_db)):
 def create_movie(movie: schemas.MovieCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Movie
-    TODO: Database implement (models.Movie(**movie.model_dump()) -> db.add -> db.commit)
     """
-    # MOCK DATA: Replace with real database output
-    return {**movie.model_dump(), "MID": 999, "ScoreRating": 0.0, "AID": 1}
+    db_movie = models.Movie(**movie.model_dump())
+    db.add(db_movie)
+    db.commit()
+    db.refresh(db_movie) 
+    return db_movie
 
 @app.put("/api/admin/movies/{movie_id}", response_model=schemas.MovieResponse, tags=["Admin - Movie"])
 def update_movie(movie_id: int, movie: schemas.MovieUpdate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Movie
-    TODO: Database implement (db.query(models.Movie).update -> db.commit)
     """
-    # MOCK DATA: Replace with real database output
-    return {
-        "MID": movie_id,
-        "MName": movie.MName or "Updated Name",
-        "Genre": movie.Genre or "Action",
-        "Duration": movie.Duration or 120,
-        "AgeRating": movie.AgeRating or "G",
-        "ReleaseDate": movie.ReleaseDate or "2026-01-01",
-        "AID": 1
-    }
+    db_movie = db.query(models.Movie).filter(models.Movie.MID == movie_id).first()
+    if not db_movie:
+        raise HTTPException(status_code=404, detail=f"Movie ID {movie_id} not found")
+    
+    for field, value in movie.model_dump(exclude_unset=True).items():
+        setattr(db_movie, field, value)
+    
+    db.commit()
+    db.refresh(db_movie)
+    return db_movie
 
 @app.delete("/api/admin/movies/{movie_id}", tags=["Admin - Movie"], status_code=status.HTTP_204_NO_CONTENT)
 def delete_movie(movie_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Movie
-    TODO: Database implement (db.delete WHERE MID = movie_id)
     """
-    # MOCK SUCCESS: Returns empty 204 response
+    db_movie = db.query(models.Movie).filter(models.Movie.MID == movie_id).first()
+    if not db_movie:
+        raise HTTPException(status_code=404, detail=f"Movie ID {movie_id} not found")
+    
+    db.delete(db_movie)
+    db.commit()
     return None
 
 # Admin Endpoints - Showtime
@@ -89,26 +93,46 @@ def delete_movie(movie_id: int, db: Session = Depends(get_db)):
 def create_showtime(showtime: schemas.ShowtimeCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Showtime
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**showtime.model_dump(), "ShowtimeID": 888}
+    #check if movie and theater exist
+    if not db.query(models.Movie).filter(models.Movie.MID == showtime.MID).first():
+        raise HTTPException(status_code=404, detail=f"Movie ID {showtime.MID} not found")
+    if not db.query(models.Theater).filter(models.Theater.ThID == showtime.ThID).first():
+        raise HTTPException(status_code=404, detail=f"Theater ID {showtime.ThID} not found")
+
+    db_showtime = models.Showtime(**showtime.model_dump())
+    db.add(db_showtime)
+    db.commit()
+    db.refresh(db_showtime)
+    return db_showtime
 
 @app.put("/api/admin/showtimes/{showtime_id}", response_model=schemas.ShowtimeResponse, tags=["Admin - Showtime"])
 def update_showtime(showtime_id: int, showtime: schemas.ShowtimeCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Showtime
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**showtime.model_dump(), "ShowtimeID": showtime_id}
+    db_showtime = db.query(models.Showtime).filter(models.Showtime.ShowtimeID == showtime_id).first()
+    if not db_showtime:
+        raise HTTPException(status_code=404, detail=f"Showtime ID {showtime_id} not found")
+
+    for field, value in showtime.model_dump(exclude_unset=True).items():
+        setattr(db_showtime, field, value)
+
+    db.commit()
+    db.refresh(db_showtime)
+    return db_showtime
 
 @app.delete("/api/admin/showtimes/{showtime_id}", tags=["Admin - Showtime"], status_code=status.HTTP_204_NO_CONTENT)
 def delete_showtime(showtime_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Showtime
-    TODO: Database implement
     """
+    db_showtime = db.query(models.Showtime).filter(models.Showtime.ShowtimeID == showtime_id).first()
+    if not db_showtime:
+        raise HTTPException(status_code=404, detail=f"Showtime ID {showtime_id} not found")
+
+    db.delete(db_showtime)
+    db.commit()
     return None
 
 # Admin Endpoints - Branch
@@ -117,26 +141,40 @@ def delete_showtime(showtime_id: int, db: Session = Depends(get_db)):
 def create_branch(branch: schemas.BranchCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Branch
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**branch.model_dump(), "BID": 1}
+    db_branch = models.Branch(**branch.model_dump())
+    db.add(db_branch)
+    db.commit()
+    db.refresh(db_branch)
+    return db_branch
 
 @app.put("/api/admin/branches/{branch_id}", response_model=schemas.BranchResponse, tags=["Admin - Branch"])
 def update_branch(branch_id: int, branch: schemas.BranchCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Branch
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**branch.model_dump(), "BID": branch_id}
+    db_branch = db.query(models.Branch).filter(models.Branch.BID == branch_id).first()
+    if not db_branch:
+        raise HTTPException(status_code=404, detail=f"Branch ID {branch_id} not found")
+
+    for field, value in branch.model_dump(exclude_unset=True).items():
+        setattr(db_branch, field, value)
+
+    db.commit()
+    db.refresh(db_branch)
+    return db_branch
 
 @app.delete("/api/admin/branches/{branch_id}", tags=["Admin - Branch"], status_code=status.HTTP_204_NO_CONTENT)
 def delete_branch(branch_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Branch
-    TODO: Database implement
     """
+    db_branch = db.query(models.Branch).filter(models.Branch.BID == branch_id).first()
+    if not db_branch:
+        raise HTTPException(status_code=404, detail=f"Branch ID {branch_id} not found")
+
+    db.delete(db_branch)
+    db.commit()
     return None
 
 # Admin Endpoints - Theater
@@ -145,26 +183,43 @@ def delete_branch(branch_id: int, db: Session = Depends(get_db)):
 def create_theater(theater: schemas.TheaterCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Theater
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**theater.model_dump(), "ThID": 101}
+    if not db.query(models.Branch).filter(models.Branch.BID == theater.BID).first():
+        raise HTTPException(status_code=404, detail=f"Branch ID {theater.BID} not found")
+
+    db_theater = models.Theater(**theater.model_dump())
+    db.add(db_theater)
+    db.commit()
+    db.refresh(db_theater)
+    return db_theater
 
 @app.put("/api/admin/theaters/{theater_id}", response_model=schemas.TheaterResponse, tags=["Admin - Theater"])
 def update_theater(theater_id: int, theater: schemas.TheaterCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Theater
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**theater.model_dump(), "ThID": theater_id}
+    db_theater = db.query(models.Theater).filter(models.Theater.ThID == theater_id).first()
+    if not db_theater:
+        raise HTTPException(status_code=404, detail=f"Theater ID {theater_id} not found")
+
+    for field, value in theater.model_dump(exclude_unset=True).items():
+        setattr(db_theater, field, value)
+
+    db.commit()
+    db.refresh(db_theater)
+    return db_theater
 
 @app.delete("/api/admin/theaters/{theater_id}", tags=["Admin - Theater"], status_code=status.HTTP_204_NO_CONTENT)
 def delete_theater(theater_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Theater
-    TODO: Database implement
     """
+    db_theater = db.query(models.Theater).filter(models.Theater.ThID == theater_id).first()
+    if not db_theater:
+        raise HTTPException(status_code=404, detail=f"Theater ID {theater_id} not found")
+
+    db.delete(db_theater)
+    db.commit()
     return None
 
 # Admin Endpoints - Seat
@@ -173,26 +228,43 @@ def delete_theater(theater_id: int, db: Session = Depends(get_db)):
 def create_seat(seat: schemas.SeatCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Seat
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**seat.model_dump(), "SeatID": 5001}
+    if not db.query(models.Theater).filter(models.Theater.ThID == seat.ThID).first():
+        raise HTTPException(status_code=404, detail=f"Theater ID {seat.ThID} not found")
+
+    db_seat = models.Seat(**seat.model_dump())
+    db.add(db_seat)
+    db.commit()
+    db.refresh(db_seat)
+    return db_seat
 
 @app.put("/api/admin/seats/{seat_id}", response_model=schemas.SeatResponse, tags=["Admin - Seat"])
 def update_seat(seat_id: int, seat: schemas.SeatCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Seat
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**seat.model_dump(), "SeatID": seat_id}
+    db_seat = db.query(models.Seat).filter(models.Seat.SeatID == seat_id).first()
+    if not db_seat:
+        raise HTTPException(status_code=404, detail=f"Seat ID {seat_id} not found")
+
+    for field, value in seat.model_dump(exclude_unset=True).items():
+        setattr(db_seat, field, value)
+
+    db.commit()
+    db.refresh(db_seat)
+    return db_seat
 
 @app.delete("/api/admin/seats/{seat_id}", tags=["Admin - Seat"], status_code=status.HTTP_204_NO_CONTENT)
 def delete_seat(seat_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Seat
-    TODO: Database implement
     """
+    db_seat = db.query(models.Seat).filter(models.Seat.SeatID == seat_id).first()
+    if not db_seat:
+        raise HTTPException(status_code=404, detail=f"Seat ID {seat_id} not found")
+
+    db.delete(db_seat)
+    db.commit()
     return None
 
 # user endpoints
@@ -201,35 +273,40 @@ def delete_seat(seat_id: int, db: Session = Depends(get_db)):
 def search_movies(name: str = None, date: str = None, branch: str = None, db: Session = Depends(get_db)):
     """
     User Function: Search Movie and Showtime
-    TODO: Database implement (SELECT with filters)
+    - name   : กรองตามชื่อหนัง (ค้นหาแบบ contains)
+    - date   : กรองตาม ShowDate ของ Showtime (YYYY-MM-DD)
+    - branch : กรองตามชื่อ Branch (ค้นหาแบบ contains)
     """
-    # MOCK DATA: Replace with real database query output
-    return [
-        {
-            "MID": 1,
-            "MName": "Jujutsu Kaisen 0",
-            "Genre": "Action",
-            "Duration": 105,
-            "AgeRating": "PG-13",
-            "ReleaseDate": "2026-04-14",
-            "AID": 1
-        }
-    ]
+    query = db.query(models.Movie)
+    if name:
+        query = query.filter(models.Movie.MName.contains(name))
+
+    if date or branch:
+        # JOIN ไปที่ Showtime → Theater → Branch เมื่อมีการกรองด้วย date หรือ branch
+        query = query.join(models.Showtime, models.Movie.MID == models.Showtime.MID)
+
+        if date:
+            query = query.filter(models.Showtime.ShowDate == date)
+
+        if branch:
+            query = (
+                query
+                .join(models.Theater, models.Showtime.ThID == models.Theater.ThID)
+                .join(models.Branch, models.Theater.BID == models.Branch.BID)
+                .filter(models.Branch.BName.contains(branch))
+            )
+
+    return query.distinct().all()
 
 @app.get("/api/showtimes/{showtime_id}/seats", response_model=List[schemas.SeatResponse], tags=["User - Cinema"])
 def check_available_seats(showtime_id: int, db: Session = Depends(get_db)):
     """
     User Function: Check Available Seat
-    TODO: Database implement (SELECT * FROM Seat WHERE ThID = ...)
+    ดึง Seat ทั้งหมดของ Theater ที่ผูกกับ Showtime นั้น
     """
-    # MOCK DATA: Replace with real database query output
-    return [
-        {
-            "SeatID": 5001,
-            "SeatStatus": "Available",
-            "SeatRow": "A",
-            "SeatNumber": 12,
-            "SeatType": "Standard",
-            "ThID": 101
-        }
-    ]
+    db_showtime = db.query(models.Showtime).filter(models.Showtime.ShowtimeID == showtime_id).first()
+    if not db_showtime:
+        raise HTTPException(status_code=404, detail=f"Showtime ID {showtime_id} not found")
+
+    seats = db.query(models.Seat).filter(models.Seat.ThID == db_showtime.ThID).all()
+    return seats
