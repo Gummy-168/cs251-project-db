@@ -356,3 +356,46 @@ def get_ticket(ticket_id: int, db: Session = Depends(get_db)):
     """
     # MOCK DATA: Replace with real database output
     return {**models.Ticket.model_dump(), "TicketID": ticket_id}
+
+
+# User Endpoints - Review
+
+@app.post("/api/reviews", response_model=schemas.ReviewResponse, tags=["Review"], status_code=status.HTTP_201_CREATED)
+def create_review(review: schemas.ReviewCreate, db: Session = Depends(get_db)):
+    """
+    User Function: Create movie review
+    """
+
+    # check if user exists
+    db_user = db.query(models.User).filter(models.User.id == review.UID).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail=f"User ID {review.UID} not found")
+
+    # check if movie exists
+    db_movie = db.query(models.Movie).filter(models.Movie.MID == review.MID).first()
+    if not db_movie:
+        raise HTTPException(status_code=404, detail=f"Movie ID {review.MID} not found")
+
+    # check review score range
+    if review.ReviewScore < 1 or review.ReviewScore > 5:
+        raise HTTPException(status_code=400, detail="ReviewScore must be between 1 and 5")
+
+    db_review = models.Review(**review.model_dump())
+    db.add(db_review)
+    db.commit()
+    db.refresh(db_review)
+    return db_review
+
+
+@app.get("/api/movies/{movie_id}/reviews", response_model=List[schemas.ReviewResponse], tags=["Review"])
+def get_reviews_by_movie(movie_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Get all reviews of a movie
+    """
+
+    db_movie = db.query(models.Movie).filter(models.Movie.MID == movie_id).first()
+    if not db_movie:
+        raise HTTPException(status_code=404, detail=f"Movie ID {movie_id} not found")
+
+    reviews = db.query(models.Review).filter(models.Review.MID == movie_id).all()
+    return reviews

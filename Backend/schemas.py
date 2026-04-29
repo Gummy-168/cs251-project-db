@@ -153,3 +153,19 @@ class PaymentResponse(PaymentBase):
     PaymentID: int
     model_config = ConfigDict(from_attributes=True)
 # \end of Payment Schemas
+
+# Review Schemas
+class ReviewBase(BaseModel):
+    ReviewScore: int
+    Comment: Optional[str] = None
+    UID: int
+    MID: int
+
+class ReviewCreate(ReviewBase):
+    pass
+
+class ReviewResponse(ReviewBase):
+    ReviewID: int
+    ReviewDate: date
+    model_config = ConfigDict(from_attributes=True)
+# \end of Review Schemas

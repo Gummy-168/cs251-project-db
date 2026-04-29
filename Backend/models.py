@@ -1,6 +1,7 @@
 from sqlalchemy import DECIMAL, Column, DateTime, Integer, String, Text, Date, Time, Numeric, ForeignKey
 from sqlalchemy.orm import relationship
 from database import Base
+from datetime import date as py_date
 
 # Mocking Admin Table for now, as we need AID for Movie table
 class Admin(Base):
@@ -126,3 +127,18 @@ class payment(Base):
     BookingID = Column(Integer, ForeignKey("booking.BookingID"), nullable=False)
 
     booking = relationship("Booking")
+
+
+class Review(Base):
+    __tablename__ = "review"
+
+    ReviewID = Column(Integer, primary_key=True, index=True)
+    ReviewDate = Column(Date, nullable=False, default=py_date.today)
+    ReviewScore = Column(Integer, nullable=False)  # 1-5
+    Comment = Column(Text, nullable=True)
+
+    UID = Column(Integer, ForeignKey("users.id"), nullable=False)
+    MID = Column(Integer, ForeignKey("movie.MID"), nullable=False)
+
+    user = relationship("User")
+    movie = relationship("Movie")
