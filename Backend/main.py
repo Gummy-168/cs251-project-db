@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import engine, SessionLocal
 from typing import List
+from decimal import Decimal
 import models, schemas
 
 # Initialize database tables
@@ -195,6 +196,18 @@ def delete_seat(seat_id: int, db: Session = Depends(get_db)):
     """
     return None
 
+# Admin Endpoints - Payment
+
+@app.get("/api/admin/payments/{payment_id}", response_model=schemas.PaymentResponse, tags=["Admin - Payment"])
+def get_payment_record(payment_id: int, db: Session = Depends(get_db)):
+    """
+    Admin Function: Retrieve payment details by PaymentID
+    TODO: Database implement
+    """
+    # MOCK DATA: Replace with real database output
+    return {**models.Payment.model_dump(), "PaymentID": payment_id}
+
+
 # user endpoints
 
 @app.get("/api/movies", response_model=List[schemas.MovieResponse], tags=["User - Cinema"])
@@ -233,3 +246,36 @@ def check_available_seats(showtime_id: int, db: Session = Depends(get_db)):
             "ThID": 101
         }
     ]
+
+# User Endpoints - Payment
+
+@app.get("/api/payments/{payment_id}", response_model=schemas.PaymentResponse, tags=["Payment"])
+def buy_ticket(payment_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Buy Ticket
+    TODO: Database implement (INSERT INTO Payment -> return PaymentID)
+    """
+    # MOCK DATA: Replace with real database output
+    return {**models.Payment.model_dump(), "PaymentID": payment_id}
+
+# User Endpoints - Booking
+
+@app.get("/api/bookings", response_model=schemas.BookingResponse, tags=["Booking"], status_code=status.HTTP_201_CREATED)
+def get_booking_record(booking: schemas.BookingCreate, db: Session = Depends(get_db)):
+    """
+    User Function: Get Booking Record
+    TODO: Database implement (INSERT INTO Booking -> return BookingID)
+    """
+    # MOCK DATA: Replace with real database output
+    return {**booking.model_dump(), "BookingID": 2001}
+
+# User Endpoints - Ticket
+
+@app.get("/api/tickets/{ticket_id}", response_model=schemas.TicketResponse, tags=["Ticket"])
+def get_ticket(ticket_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Get Ticket Details
+    TODO: Database implement (SELECT * FROM Ticket WHERE TicketID = ticket_id)
+    """
+    # MOCK DATA: Replace with real database output
+    return {**models.Ticket.model_dump(), "TicketID": ticket_id}
