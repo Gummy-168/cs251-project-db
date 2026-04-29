@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Text, Date, Time, Numeric, ForeignKey
+from sqlalchemy import Column, DateTime, Integer, String, Text, Date, Time, Numeric, ForeignKey
 from sqlalchemy.orm import relationship
+from decimal import Decimal
 from database import Base
 
 # Mocking Admin Table for now, as we need AID for Movie table
@@ -80,3 +81,38 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
+
+class Booking(Base):
+    __tablename__ = "booking"
+    BookingID = Column(Integer, primary_key=True, index=True)
+    BookingDate = Column(DateTime, nullable=False)
+    BookingStatus = Column(String(20), nullable=False) # Confirmed, Cancelled, Pending
+    TotalPrice = Column(Decimal(10, 2), nullable=False)
+    UID = Column(Integer, ForeignKey("users.id"), nullable=False)
+    ShowtimeID = Column(Integer, ForeignKey("showtime.ShowtimeID"), nullable=False)
+    PromotionID = Column(Integer, ForeignKey("promotion.PromotionID"), nullable=True)
+
+    user = relationship("User")
+    showtime = relationship("Showtime")
+    promotion = relationship("Promotion")
+
+class Ticket(Base):
+    __tablename__ = "ticket"
+    TicketID = Column(Integer, primary_key=True, index=True)
+    SeatID = Column(Integer, ForeignKey("seat.SeatID"), nullable=False)
+    BookingID = Column(Integer, ForeignKey("booking.BookingID"), nullable=False)
+    Price = Column(Decimal(7, 2), nullable=False)
+
+    seat = relationship("Seat")
+    booking = relationship("Booking")
+
+class payment(Base):
+    __tablename__ = "payment"
+    PaymentID = Column(Integer, primary_key=True, index=True)
+    Amount = Column(Decimal(10, 2), nullable=False)
+    PaymentStatus = Column(String(20), nullable=False) # Successs, Failed, Pending
+    PaymentDate = Column(DateTime, nullable=False)
+    PaymentMethod = Column(String(50), nullable=False) # PromptPay, Credit Card, Cash
+    BookingID = Column(Integer, ForeignKey("booking.BookingID"), nullable=False)
+
+    booking = relationship("Booking")
