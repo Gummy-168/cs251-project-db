@@ -1,3 +1,4 @@
+
 export default function MoviesPage() {
   return (
     <main className="min-h-screen bg-[#06160a] text-white">
@@ -26,53 +27,105 @@ export default function MoviesPage() {
         </div>
       </nav>
 
-      <section className="px-14 py-10">
-  <div className="mb-8 flex items-center justify-between">
-    <h2 className="text-4xl font-black">ภาพยนตร์ที่กำลังฉาย</h2>
+      <section className="mx-auto max-w-[1200px] px-8 py-10">
+        <div className="mb-10 flex items-center justify-between">
+  <h2 className="text-4xl font-black">ภาพยนตร์ที่กำลังฉาย</h2>
 
-    <div className="flex gap-3">
-      {["ทั้งหมด", "Action", "Anime", "Fantasy", "Sci-Fi"].map((item) => (
-        <button
-          key={item}
-          className={`rounded-full px-6 py-2 text-xs font-black ${
-            item === "ทั้งหมด"
-              ? "bg-[#63e86f] text-black"
-              : "bg-[#273028] text-white"
-          }`}
-        >
-          {item}
-        </button>
-      ))}
-    </div>
+  <div
+  style={{
+    display: "flex",
+    gap: "16px", // ระยะห่างพอดี
+    alignItems: "center",
+    flexWrap: "wrap", // กันล้นจอ
+  }}
+>
+  {["ทั้งหมด", "Action", "Anime", "Fantasy", "Horror", "Sports", "Drama"].map((item) => (
+    <button
+      key={item}
+      style={{
+        padding: "10px 18px", // 🔥 ทำให้เล็กลง
+        borderRadius: "999px",
+        border: "none",
+        backgroundColor: item === "ทั้งหมด" ? "#63e86f" : "#2c352e",
+        color: item === "ทั้งหมด" ? "#06160a" : "#d7ddd7",
+        fontSize: "14px", // เล็กลง
+        fontWeight: 600,
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {item}
+    </button>
+  ))}
+</div>
+</div>
+
+        <div
+  style={{
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "32px",
+    alignItems: "flex-start",
+    width: "100%",
+     marginTop: "32px",
+  }}
+>
+          {movies.map((movie) => (
+            <article
+  key={movie.title}
+  style={{
+    width: "240px",
+    height: "430px",
+    backgroundColor: "#172319",
+    borderRadius: "20px",
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
+  }}
+>
+  <div
+  style={{
+    width: "100%",
+    height: "340px",
+    overflow: "hidden",
+    backgroundColor: "black",
+  }}
+>
+  <img
+    src={movie.image}
+    alt={movie.title}
+    style={{
+      width: "100%",
+      height: "100%",
+      objectFit: "cover",
+      display: "block",
+    }}
+  />
+</div>
+
+  <div className="flex flex-1 flex-col px-4 py-3">
+  
+  {/* Title */}
+  <h3 className="line-clamp-2 min-h-[42px] text-center text-[14px] font-semibold leading-tight">
+    {movie.title}
+  </h3>
+
+  {/* Info */}
+  <div className="mt-2 flex justify-between text-[12px] text-gray-300">
+    <span>{movie.genre}</span>
+    <span>{movie.duration}</span>
   </div>
 
-  <div className="grid grid-cols-4 gap-x-12 gap-y-12">
-    {movies.map((movie, index) => (
-      <article key={`${movie.title}-${index}`} className="min-w-0">
-        <div className="aspect-[2/3] overflow-hidden rounded-[14px] bg-[#172319]">
-          <img
-            src={movie.image}
-            alt={movie.title}
-            className="h-full w-full object-cover"
-          />
-        </div>
+  {/* Button */}
+  <button className="mt-auto h-[44px] w-full rounded-full bg-[#63e86f] text-[14px] font-semibold text-[#06160a] transition hover:opacity-90">
+    จองตั๋ว
+  </button>
 
-        <h3 className="mt-4 text-lg font-black leading-snug text-white">
-          {movie.title}
-        </h3>
-
-        <div className="mt-4 flex gap-2">
-          <span className="rounded-full bg-gray-100 px-4 py-2 text-xs font-bold text-gray-600">
-            {movie.genre}
-          </span>
-          <span className="rounded-full bg-gray-100 px-4 py-2 text-xs font-bold text-gray-600">
-            {movie.duration}
-          </span>
+</div>
+</article>
+          ))}
         </div>
-      </article>
-    ))}
-  </div>
-</section>
+      </section>
     </main>
   );
 }
@@ -97,7 +150,7 @@ const movies = [
     image: "/image/bluelock.webp",
   },
   {
-    title: "Detective Conan: Fallen Angel of the Highway",
+    title: "Detective Conan: Fall...",
     genre: "Action, Anime",
     duration: "100 นาที",
     image: "/image/conan.webp",
