@@ -81,6 +81,17 @@ class User(Base):
     name = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
 
+#removes if can't implement
+class Promotion(Base):
+    __tablename__ = "promotion"
+    PromotionID = Column(Integer, primary_key=True, index=True)
+    PromoCode = Column(String(50), unique=True, nullable=False)
+    Description = Column(String(255), nullable=True)
+    Discount = Column(Numeric(5, 2), nullable=False)  # 10.00 = ลด 10%
+    ExpiryDate = Column(Date, nullable=False)
+
+    bookings = relationship("Booking", back_populates="promotion")
+
 class Booking(Base):
     __tablename__ = "booking"
     BookingID = Column(Integer, primary_key=True, index=True)
