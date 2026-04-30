@@ -22,9 +22,12 @@ export default function PaymentPage() {
           </a>
         </div>
 
-        <div className="ml-auto border border-[#63e86f] rounded-full w-7 h-7 flex items-center justify-center text-[#63e86f]">
-          ◎
-        </div>
+        <a
+  href="/User/Profile"
+  className="ml-auto flex h-7 w-7 items-center justify-center rounded-full border border-[#63e86f] text-sm text-[#63e86f] transition hover:bg-[#63e86f] hover:text-[#06160a]"
+>
+  ◎
+</a>
       </nav>
 
       {/* Content */}
