@@ -1,3 +1,4 @@
+import Link from "next/link";
 export default function HomePage() {
   const promotions = [
     {
@@ -109,12 +110,12 @@ export default function HomePage() {
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-4xl font-black">โปรโมชั่นพิเศษ</h2>
 
-              <a
-                href="/User/Promotion"
-                className="text-base font-bold text-[#63e86f]"
-              >
-                ดูทั้งหมด
-              </a>
+              <Link
+  href="/User/Movies"
+  className="text-base font-bold text-[#63e86f]"
+>
+  ดูทั้งหมด
+</Link>
             </div>
 
             <div className="grid grid-cols-3 gap-7">
@@ -149,7 +150,7 @@ export default function HomePage() {
 
           <section>
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-4xl font-black">หนังที่กำลังฉาย</h2>
+              <h2 className="text-4xl font-black">ภาพยนตร์ที่กำลังฉาย</h2>
 
               <a
                 href="/User/Movies"
