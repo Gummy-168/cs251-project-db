@@ -1,4 +1,8 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 export default function PaymentPage() {
+  const router = useRouter();
   return (
     <main className="min-h-screen w-full bg-[#06160a] text-white">
       {/* Navbar */}
@@ -76,9 +80,16 @@ export default function PaymentPage() {
           </p>
 
           {/* Button */}
-          <button className="mt-6 w-full bg-[#63e86f] text-black font-bold py-3 rounded-full hover:bg-[#4ebd5a] transition">
-            เสร็จสิ้น
-          </button>
+          <button
+  type="button"
+  onClick={() => {
+    alert("ระบบตรวจสอบการชำระเงินเรียบร้อยแล้ว");
+    window.location.href = "/User/Home";
+  }}
+  className="mt-6 w-full rounded-full bg-[#63e86f] py-3 font-bold text-black transition hover:bg-[#4ebd5a]"
+>
+  เสร็จสิ้น
+</button>
 
           <div className="mt-6 text-xs bg-[#172319] inline-block px-4 py-2 rounded-full">
             A6, K7
