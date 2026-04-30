@@ -1,11 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-
 export default function ProfileEditPage() {
 
   const router = useRouter();
+  const [name, setName] = useState("");
+const [email, setEmail] = useState("");
 
   return (
     <main className="min-h-screen bg-[#1d2b22] text-white">
@@ -45,20 +46,25 @@ export default function ProfileEditPage() {
                 ชื่อที่แสดง
               </label>
               <input
-                type="text"
-                placeholder="กรอกชื่อของคุณ"
-                className="h-[48px] w-full rounded-full bg-[#243327] px-5 text-sm text-white outline-none placeholder:text-gray-500"
-              />
+  type="text"
+  placeholder="กรอกชื่อของคุณ"
+  value={name}
+  onChange={(e) => setName(e.target.value)}
+  className="h-[48px] w-full rounded-full bg-[#243327] px-5 text-sm text-white outline-none placeholder:text-gray-500"
+/>
             </div>
 
             <div>
-              <label className="mb-2 block text-sm text-gray-200">
-                วันเกิด
-              </label>
-              <input
-                type="date"
-                className="h-[48px] w-full rounded-full bg-[#243327] px-5 text-sm text-gray-400 outline-none"
-              />
+              <label htmlFor="birthday" className="mb-2 block text-sm text-gray-200">
+  วันเกิด
+</label>
+
+<input
+  id="birthday"
+  type="date"
+  title="วันเกิด"
+  className="h-[48px] w-full rounded-full bg-[#243327] px-5 text-sm text-gray-400 outline-none"
+/>
             </div>
 
             <div>
@@ -77,15 +83,22 @@ export default function ProfileEditPage() {
                 อีเมล
               </label>
               <input
-                type="email"
-                placeholder="example@emerald.com"
-                className="h-[48px] w-full rounded-full bg-[#243327] px-5 text-sm text-white outline-none placeholder:text-gray-500"
-              />
+  type="email"
+  placeholder="example@emerald.com"
+  value={email}
+  onChange={(e) => setEmail(e.target.value)}
+  className="h-[48px] w-full rounded-full bg-[#243327] px-5 text-sm text-white outline-none placeholder:text-gray-500"
+/>
             </div>
 
            <button
   type="button"
   onClick={() => {
+    if (!name || !email) {
+      alert("กรุณากรอกชื่อและอีเมล");
+      return;
+    }
+
     alert("บันทึกข้อมูลแล้ว");
     router.push("/User/Home");
   }}
