@@ -222,7 +222,7 @@ export default function BookingPage() {
             href="/User/Profile"
             className="text-[#6FDE76] transition hover:scale-105"
           >
-            <ProfileIcon />
+            ◎
           </a>
         </nav>
 
@@ -375,12 +375,13 @@ export default function BookingPage() {
             </div>
 
             <button
-              type="button"
-              className="mt-10 flex w-full items-center justify-center gap-3 rounded-full bg-[#6FDE76] py-5 text-[18px] font-bold text-[#061008] shadow-[0_12px_30px_rgba(111,222,118,0.35)] transition hover:bg-[#5ad764]"
-            >
-              <span>ซื้อตั๋ว</span>
-              <TicketIcon />
-            </button>
+  type="button"
+  onClick={() => window.location.href = "/User/Payment"}
+  className="mt-10 flex w-full items-center justify-center gap-3 rounded-full bg-[#6FDE76] py-5 text-[18px] font-bold text-[#061008] shadow-[0_12px_30px_rgba(111,222,118,0.35)] transition hover:bg-[#5ad764]"
+>
+  <span>ซื้อตั๋ว</span>
+  <TicketIcon />
+</button>
           </aside>
         </div>
       </div>
