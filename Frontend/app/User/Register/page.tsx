@@ -5,7 +5,7 @@ export default function RegisterPage() {
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#668866] to-[#17261d] px-4">
       <section className="relative w-full max-w-[620px] rounded-[5px] bg-[#eeeeee] px-24 py-10 shadow-xl">
         <a
-          href="/User/Login"
+          href="/User/Signin"
           className="absolute left-8 top-7 text-4xl font-bold text-[#26352b] hover:text-[#4fc263]"
         >
           ‹
