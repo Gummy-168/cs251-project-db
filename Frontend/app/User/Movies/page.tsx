@@ -1,5 +1,10 @@
+"use client";
+
+import { useState } from "react";
 
 export default function MoviesPage() {
+  const [activeCategory, setActiveCategory] = useState("ทั้งหมด");
+
   return (
     <main className="min-h-screen bg-[#06160a] text-white">
       <nav className="flex h-[72px] w-full items-center bg-[#06160a] px-8">
@@ -41,21 +46,17 @@ export default function MoviesPage() {
 >
   {["ทั้งหมด", "Action", "Anime", "Fantasy", "Horror", "Sports", "Drama"].map((item) => (
     <button
-      key={item}
-      style={{
-        padding: "10px 18px", // 🔥 ทำให้เล็กลง
-        borderRadius: "999px",
-        border: "none",
-        backgroundColor: item === "ทั้งหมด" ? "#63e86f" : "#2c352e",
-        color: item === "ทั้งหมด" ? "#06160a" : "#d7ddd7",
-        fontSize: "14px", // เล็กลง
-        fontWeight: 600,
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {item}
-    </button>
+  key={item}
+  onClick={() => setActiveCategory(item)}
+  className={`rounded-full px-6 py-3 text-[14px] font-semibold transition duration-200
+  ${
+    activeCategory === item
+      ? "bg-[#63e86f] text-[#06160a]"
+      : "bg-[#2c352e] text-white hover:bg-[#63e86f] hover:text-[#06160a]"
+  }`}
+>
+  {item}
+</button>
   ))}
 </div>
 </div>
@@ -103,23 +104,25 @@ export default function MoviesPage() {
   />
 </div>
 
-  <div className="flex flex-1 flex-col px-4 py-3">
-  
-  {/* Title */}
-  <h3 className="line-clamp-2 min-h-[42px] text-center text-[14px] font-semibold leading-tight">
+  <div className="flex flex-1 flex-col px-4 py-4">
+
+  <h3 className="line-clamp-2 min-h-[48px] text-center text-[15px] font-semibold leading-tight">
     {movie.title}
   </h3>
 
-  {/* Info */}
-  <div className="mt-2 flex justify-between text-[12px] text-gray-300">
-    <span>{movie.genre}</span>
-    <span>{movie.duration}</span>
+  <div className="flex flex-1 items-center">
+    <div className="flex w-full justify-between text-[13px] text-gray-300">
+      <span>{movie.genre}</span>
+      <span>{movie.duration}</span>
+    </div>
   </div>
 
-  {/* Button */}
-  <button className="mt-auto h-[44px] w-full rounded-full bg-[#63e86f] text-[14px] font-semibold text-[#06160a] transition hover:opacity-90">
-    จองตั๋ว
-  </button>
+  <button
+  onClick={() => window.location.href = "/booking"}
+  className="mt-4 h-[46px] w-full rounded-full bg-[#63e86f] text-[15px] font-semibold text-[#06160a]"
+>
+  จองตั๋ว
+</button>
 
 </div>
 </article>
