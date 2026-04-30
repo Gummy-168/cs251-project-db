@@ -99,9 +99,12 @@ export default function HomePage() {
           </a>
         </div>
 
-        <div className="ml-auto flex h-7 w-7 items-center justify-center rounded-full border border-[#63e86f] text-sm text-[#63e86f]">
-          ◎
-        </div>
+        <a
+  href="/User/Profile"
+  className="ml-auto flex h-7 w-7 items-center justify-center rounded-full border border-[#63e86f] text-sm text-[#63e86f] transition hover:bg-[#63e86f] hover:text-[#06160a]"
+>
+  ◎
+</a>
       </nav>
 
       <section className="grid w-full grid-cols-[minmax(0,1fr)_290px] gap-8 px-8 pb-12 pt-10">
