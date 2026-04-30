@@ -60,10 +60,13 @@ export default function ProfilePage() {
             </div>
 
             <div className="mt-10 flex justify-end">
-              <button className="rounded-full border border-[#63e86f] px-8 py-3 text-sm font-semibold text-white transition hover:bg-[#63e86f] hover:text-[#06160a]">
-                ✎ แก้ไขโปรไฟล์
-              </button>
-            </div>
+  <a
+    href="/User/Profile-edit"
+    className="inline-block rounded-full border border-[#63e86f] px-8 py-3 text-sm font-semibold text-white transition hover:bg-[#63e86f] hover:text-[#06160a]"
+  >
+    ✎ แก้ไขโปรไฟล์
+  </a>
+</div>
           </div>
 
           <div className="grid grid-cols-2 bg-[#223025] py-6 text-center">
