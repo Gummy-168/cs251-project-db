@@ -1,6 +1,8 @@
 "use client";
+import { useRouter } from "next/navigation";
+export default function SigninPage() {
+  const router = useRouter();
 
-export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#668866] to-[#17261d] px-4">
       <section className="w-full max-w-[620px] rounded-[4px] bg-[#eeeeee] px-24 py-10 shadow-xl">
@@ -33,11 +35,12 @@ export default function LoginPage() {
 
           <div className="pt-4 text-center">
             <button
-              type="button"
-              className="h-[40px] w-[210px] rounded-[5px] bg-[#4fc263] text-white transition hover:bg-[#63e86f] hover:text-[#06160a]"
-            >
-              Sign In
-            </button>
+  type="button"
+  onClick={() => router.push("/User/Home")}
+  className="h-[40px] w-[210px] rounded-[5px] bg-[#4fc263] text-white transition hover:bg-[#63e86f] hover:text-[#06160a]"
+>
+  Sign In
+</button>
 
             <a
               href="/User/Register"
