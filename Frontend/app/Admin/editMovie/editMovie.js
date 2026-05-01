@@ -96,4 +96,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    const logoutBtn = document.querySelector('.logout-btn');
+    if (logoutBtn) {
+        logoutBtn.onclick = () => { // ใช้ .onclick แทนเพื่อความชัวร์
+            if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
+                // จากรูปโครงสร้างโฟลเดอร์ของคุณ ต้องถอยออก 3 ระดับครับ
+                // 1. ออกจาก editMovie -> 2. ออกจาก Admin -> 3. ออกจาก app
+                window.location.href = '../login/login.html'
+            }
+        };
+    }
 });

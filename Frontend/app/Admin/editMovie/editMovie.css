@@ -83,7 +83,8 @@ nav {
 
 /* ปุ่ม Log Out */
 .logout-btn {
-    margin: 30px;
+    width: 80%;
+    margin: 20px;
     background: transparent;
     border: 1px solid #444;
     color: #888;

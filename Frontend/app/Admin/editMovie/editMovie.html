@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <title>Emerald Cinema - Edit Movie</title>
     <link rel="stylesheet" href="editMovie.css">
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500&display=swap"
+        rel="stylesheet">
 </head>
+
 <body class="dashboard-body">
     <div class="sidebar">
         <div class="logo">
@@ -18,7 +21,9 @@
             <div class="nav-item">MANAGE SHOWTIME</div>
             <div class="nav-item active">EDIT MOVIE</div>
         </nav>
-        <button class="logout-btn">LOG OUT</button>
+        <a href="../login/login.html" style="text-decoration: none; display: block; width: 100%;">
+            <button class="logout-btn">LOG OUT</button>
+        </a>
     </div>
 
     <main class="content">
@@ -30,34 +35,35 @@
         </header>
 
         <div class="movie-grid">
-    <div class="movie-card">
-        <div class="poster-container">
-            <span class="movie-id">ID: 0890</span>
-            <img src="https://via.placeholder.com/200x300" alt="Movie Poster">
-        </div>
-        <div class="movie-info">
-            <h3>Neon Vanguard</h3>
-            <p>In a future where memory is a luxury...</p>
-            <button class="edit-btn-small" onclick="location.href='updateMovie.html?id=0890'">แก้ไข</button>
-        </div>
-    </div>
+            <div class="movie-card">
+                <div class="poster-container">
+                    <span class="movie-id">ID: 0890</span>
+                    <img src="https://via.placeholder.com/200x300" alt="Movie Poster">
+                </div>
+                <div class="movie-info">
+                    <h3>Neon Vanguard</h3>
+                    <p>In a future where memory is a luxury...</p>
+                    <button class="edit-btn-small" onclick="location.href='updateMovie.html?id=0890'">แก้ไข</button>
+                </div>
+            </div>
 
-    <div class="movie-card">
-        <div class="poster-container">
-            <span class="movie-id">ID: 0891</span>
-            <img src="https://via.placeholder.com/200x300" alt="Movie Poster">
+            <div class="movie-card">
+                <div class="poster-container">
+                    <span class="movie-id">ID: 0891</span>
+                    <img src="https://via.placeholder.com/200x300" alt="Movie Poster">
+                </div>
+                <div class="movie-info">
+                    <h3>Emerald Dreams</h3>
+                    <p>A journey through the crystal forests...</p>
+                    <button class="edit-btn-small" onclick="location.href='updateMovie.html?id=0891'">แก้ไข</button>
+                </div>
+            </div>
         </div>
-        <div class="movie-info">
-            <h3>Emerald Dreams</h3>
-            <p>A journey through the crystal forests...</p>
-            <button class="edit-btn-small" onclick="location.href='updateMovie.html?id=0891'">แก้ไข</button>
-        </div>
-    </div>
-</div>
 
         <button id="addMovieBtn" class="fab-btn">+</button>
     </main>
 
     <script src="editMovie.js"></script>
 </body>
+
 </html>

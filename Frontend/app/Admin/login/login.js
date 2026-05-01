@@ -9,7 +9,7 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
 
     if(email && password) {
         alert('ยินดีต้อนรับสู่ Emerald Cinema!');
-    } else {
-        alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+        // ออกจาก login เข้าไปที่ editMovie
+        window.location.href = '../editMovie/editMovie.html';
     }
 });
