@@ -6,29 +6,35 @@
     --text-white: #eeeeee;
 }
 
+/* ส่วนพื้นฐานที่ต้องมีเพื่อให้ Layout ไม่แตก */
 body.dashboard-body {
     background-color: var(--bg-dark);
     color: var(--text-white);
     display: flex;
-    margin: 0;
     font-family: 'Inter', sans-serif;
-    height: 100vh;
+    height: 100vh; /* ล็อคความสูงหน้าจอ */
+    width: 100vw;  /* ล็อคความกว้างหน้าจอ */
+    overflow: hidden; /* ป้องกัน scrollbar ซ้อนกัน */
 }
 
-/* Sidebar หลัก */
+/* Sidebar หลัก - ล็อคความกว้างคงที่ */
 .sidebar {
-    width: 280px; /* ขยายความกว้างเล็กน้อยตามรูป */
-    background-color: #0d150e; /* สีดำเขียวเข้ม */
+    width: 280px; 
+    min-width: 280px; /* บังคับไม่ให้โดนบีบ */
+    background-color: #0d150e;
     height: 100vh;
-    padding: 40px 0; /* เปลี่ยนเป็น 0 เพื่อให้เส้น Active ชิดขอบซ้าย */
+    padding: 60px 0 40px 0;
     display: flex;
     flex-direction: column;
+    z-index: 10;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 /* หัวข้อ Emerald Cinema */
 .logo {
     padding: 0 30px;
-    margin-bottom: 50px;
+    margin-bottom: 60px;
 }
 
 .logo h1 {
@@ -49,7 +55,7 @@ body.dashboard-body {
 
 /* รายการเมนู */
 nav {
-    flex: 1;
+    flex-grow: 1;
 }
 
 .nav-item {
@@ -60,6 +66,7 @@ nav {
     cursor: pointer;
     transition: all 0.3s ease;
     border-left: 5px solid transparent; /* เตรียมเส้นขอบซ้ายไว้ */
+    position: relative;
 }
 
 .nav-item:hover {
@@ -76,7 +83,7 @@ nav {
 
 /* ปุ่ม Log Out */
 .logout-btn {
-    margin: 0 30px;
+    margin: 30px;
     background: transparent;
     border: 1px solid #444;
     color: #888;
@@ -94,9 +101,21 @@ nav {
 
 /* Main Content */
 .content {
-    flex: 1;
-    padding: 40px;
+    flex-grow: 1;
+    height: 100vh;
+    /* ขยับ Padding บนให้เป็น 80px และซ้ายเป็น 60px จะดูสวยและไม่ติดขอบครับ */
+    padding: 80px 60px; 
     overflow-y: auto;
+    background-color: var(--bg-dark);
+    box-sizing: border-box;
+}
+
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    width: 100%;
 }
 
 /* Floating Action Button (ปุ่มบวก) */
@@ -145,4 +164,156 @@ input, textarea {
     cursor: pointer;
     font-weight: bold;
     float: right;
+}
+
+/* การจัดวาง Grid ของหนัง */
+.movie-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 30px;
+    margin-top: 20px;
+}
+
+/* ตัว Card หนัง */
+.movie-card {
+    background-color: #1e2f21;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: transform 0.3s ease;
+    border: 1px solid rgba(88, 193, 100, 0.1);
+}
+
+.movie-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--accent-green);
+}
+
+.poster-container {
+    position: relative;
+    height: 300px;
+}
+
+.poster-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.movie-id {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    color: var(--accent-green);
+}
+
+.movie-info {
+    padding: 15px;
+}
+
+.movie-info h3 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+    color: #fff;
+}
+
+.movie-info p {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 15px;
+    line-height: 1.4;
+}
+
+.edit-btn-small {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--accent-green);
+    color: var(--accent-green);
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.edit-btn-small:hover {
+    background: var(--accent-green);
+    color: #000;
+}
+
+/* Saved Bubble แจ้งเตือน */
+.save-bubble {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background-color: var(--accent-green);
+    color: white;
+    padding: 10px 30px;
+    border-radius: 50px;
+    font-weight: 500;
+    transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    z-index: 1000;
+}
+
+.save-bubble.show {
+    transform: translateX(-50%) translateY(70px); /* ปรับระยะให้เด้งลงมาให้เห็นชัดเจน */
+    opacity: 1;
+}
+
+/* Overlay สำหรับการแจ้งเตือนยังไม่ได้ Save */
+.overlay-container {
+    display: none; /* ปิดไว้ก่อน */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+}
+
+.overlay-box {
+    background: var(--sidebar-bg);
+    padding: 40px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid #333;
+    max-width: 400px;
+}
+
+.overlay-box p {
+    margin-bottom: 30px;
+    font-size: 18px;
+}
+
+.overlay-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+/* ปุ่มใน Overlay */
+.btn-save-leave {
+    background-color: var(--accent-green);
+    color: black;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.btn-cancel {
+    background: transparent;
+    color: white;
+    border: 1px solid white;
+    padding: 12px 20px;
+    border-radius: 6px;
+    cursor: pointer;
 }
