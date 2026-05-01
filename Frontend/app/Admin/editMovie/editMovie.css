@@ -1,0 +1,148 @@
+:root {
+    --bg-dark: #1a2a1d;
+    --sidebar-bg: #0d150e;
+    --accent-green: #58c164;
+    --card-bg: #1e2f21;
+    --text-white: #eeeeee;
+}
+
+body.dashboard-body {
+    background-color: var(--bg-dark);
+    color: var(--text-white);
+    display: flex;
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    height: 100vh;
+}
+
+/* Sidebar หลัก */
+.sidebar {
+    width: 280px; /* ขยายความกว้างเล็กน้อยตามรูป */
+    background-color: #0d150e; /* สีดำเขียวเข้ม */
+    height: 100vh;
+    padding: 40px 0; /* เปลี่ยนเป็น 0 เพื่อให้เส้น Active ชิดขอบซ้าย */
+    display: flex;
+    flex-direction: column;
+}
+
+/* หัวข้อ Emerald Cinema */
+.logo {
+    padding: 0 30px;
+    margin-bottom: 50px;
+}
+
+.logo h1 {
+    font-family: 'Cinzel', serif;
+    color: #58c164; /* สีเขียวมรกต */
+    font-size: 22px;
+    margin: 0;
+    letter-spacing: 1px;
+}
+
+.logo span {
+    color: #4a634e; /* สีเขียวขี้ม้าจางๆ */
+    font-size: 11px;
+    display: block;
+    margin-top: 5px;
+    font-weight: bold;
+}
+
+/* รายการเมนู */
+nav {
+    flex: 1;
+}
+
+.nav-item {
+    padding: 15px 30px;
+    color: #888; /* สีเมนูที่ยังไม่ได้เลือก */
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-left: 5px solid transparent; /* เตรียมเส้นขอบซ้ายไว้ */
+}
+
+.nav-item:hover {
+    color: #ccc;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* เมนูที่กำลังใช้งาน (Active) */
+.nav-item.active {
+    color: #eeeeee;
+    background: linear-gradient(90deg, rgba(88, 193, 100, 0.15) 0%, transparent 100%);
+    border-left: 5px solid #58c164; /* เส้นสีเขียวหนาๆ ด้านหน้า */
+}
+
+/* ปุ่ม Log Out */
+.logout-btn {
+    margin: 0 30px;
+    background: transparent;
+    border: 1px solid #444;
+    color: #888;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: 0.3s;
+}
+
+.logout-btn:hover {
+    border-color: #ff4b4b;
+    color: #ff4b4b;
+}
+
+/* Main Content */
+.content {
+    flex: 1;
+    padding: 40px;
+    overflow-y: auto;
+}
+
+/* Floating Action Button (ปุ่มบวก) */
+.fab-btn {
+    position: fixed;
+    bottom: 40px;
+    right: 40px;
+    width: 60px;
+    height: 60px;
+    background-color: var(--accent-green);
+    border: none;
+    border-radius: 12px;
+    font-size: 30px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+}
+
+/* Form Elements */
+input, textarea {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid #333;
+    padding: 12px;
+    color: white;
+    width: 100%;
+    margin-top: 5px;
+    border-radius: 6px;
+}
+
+.upload-placeholder {
+    width: 250px;
+    height: 375px;
+    border: 2px dashed #444;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(255,255,255,0.02);
+}
+
+.save-btn {
+    background-color: var(--accent-green);
+    color: black;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    float: right;
+}
