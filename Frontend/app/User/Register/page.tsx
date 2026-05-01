@@ -25,7 +25,7 @@ export default function RegisterPage() {
     }
 
     alert("สมัครสมาชิกสำเร็จ");
-    router.push("/User/Signin");
+    router.push("/User/Signin"); 
   };
 
   return (
