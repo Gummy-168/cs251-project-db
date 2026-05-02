@@ -6,7 +6,6 @@ from database import engine, SessionLocal
 from typing import List
 from datetime import date
 import hashlib
-import models
 import schemas
 
 # Initialize database tables
@@ -53,6 +52,9 @@ def serialize_user_row(row) -> dict:
     }
 
 
+# ==========================================
+# Seat Layout Generation (From HEAD)
+# ==========================================
 def generate_standard_seat_layout(theater_id: int) -> list[dict]:
     layout = []
     rows = [chr(code) for code in range(ord("A"), ord("L") + 1)]
@@ -88,6 +90,109 @@ def get_standard_seat_meta(seat_row: str, seat_number: int, theater_id: int) -> 
             return seat
 
     return None
+
+# ==========================================
+# Database Utilities & Seeding (From Incoming)
+# ==========================================
+def fetch_one(db: Session, query: str, params: dict | None = None):
+    return db.execute(text(query), params or {}).mappings().first()
+
+
+def ensure_record_exists(
+    db: Session,
+    table_name: str,
+    id_column: str,
+    record_id: int,
+    detail: str,
+) -> None:
+    record = fetch_one(
+        db,
+        f"SELECT {id_column} FROM `{table_name}` WHERE {id_column} = :record_id",
+        {"record_id": record_id},
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail=detail)
+
+
+def seed_initial_data() -> None:
+    db = SessionLocal()
+    try:
+        admin = fetch_one(
+            db,
+            """
+            SELECT AID
+            FROM `Admin`
+            WHERE AEmail = :email
+            LIMIT 1
+            """,
+            {"email": "admin@cs251.local"},
+        )
+
+        if admin:
+            admin_id = admin["AID"]
+        else:
+            admin_result = db.execute(
+                text(
+                    """
+                    INSERT INTO `Admin` (AName, AEmail, APassword)
+                    VALUES (:name, :email, :password)
+                    """
+                ),
+                {
+                    "name": "System Admin",
+                    "email": "admin@cs251.local",
+                    "password": hash_password("admin1234"),
+                },
+            )
+            db.commit()
+            admin_id = admin_result.lastrowid
+
+        existing_movie = fetch_one(
+            db,
+            """
+            SELECT MID
+            FROM `Movie`
+            WHERE MName = :name AND AID = :aid
+            LIMIT 1
+            """,
+            {"name": "Welcome Movie", "aid": admin_id},
+        )
+
+        if not existing_movie:
+            db.execute(
+                text(
+                    """
+                    INSERT INTO `Movie` (
+                        MName, Genre, Duration, AgeRating, Description,
+                        ReleaseDate, Actor, Director, ScoreRating, AID
+                    )
+                    VALUES (
+                        :name, :genre, :duration, :age_rating, :description,
+                        :release_date, :actor, :director, :score_rating, :aid
+                    )
+                    """
+                ),
+                {
+                    "name": "Welcome Movie",
+                    "genre": "Drama",
+                    "duration": 120,
+                    "age_rating": "G",
+                    "description": "Default movie created automatically for a fresh deployment.",
+                    "release_date": "2026-01-01",
+                    "actor": "Sample Cast",
+                    "director": "System Seeder",
+                    "score_rating": 0.0,
+                    "aid": admin_id,
+                },
+            )
+            db.commit()
+    finally:
+        db.close()
+
+
+@app.on_event("startup")
+def startup_tasks():
+    seed_initial_data()
 
 @app.get("/api/db-test")
 def db_test(db: Session = Depends(get_db)):
@@ -289,35 +394,90 @@ def update_user_profile(uid: int, user: schemas.UserUpdate, db: Session = Depend
 def create_movie(movie: schemas.MovieCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Movie
-    TODO: Database implement (models.Movie(**movie.model_dump()) -> db.add -> db.commit)
     """
-    # MOCK DATA: Replace with real database output
-    return {**movie.model_dump(), "MID": 999, "ScoreRating": 0.0, "AID": 1}
+    ensure_record_exists(db, "Admin", "AID", movie.AID, "Admin not found")
+
+    result = db.execute(
+        text(
+            """
+            INSERT INTO `Movie` (
+                MName, Genre, Duration, AgeRating, Description,
+                ReleaseDate, Actor, Director, ScoreRating, AID
+            )
+            VALUES (
+                :MName, :Genre, :Duration, :AgeRating, :Description,
+                :ReleaseDate, :Actor, :Director, :ScoreRating, :AID
+            )
+            """
+        ),
+        movie.model_dump(),
+    )
+    db.commit()
+
+    created_movie = fetch_one(
+        db,
+        """
+        SELECT MID, MName, Genre, Duration, AgeRating, Description,
+               ReleaseDate, Actor, Director, ScoreRating, AID
+        FROM `Movie`
+        WHERE MID = :movie_id
+        """,
+        {"movie_id": result.lastrowid},
+    )
+    if not created_movie:
+        raise HTTPException(status_code=500, detail="Movie creation failed")
+
+    return dict(created_movie)
 
 @app.put("/api/admin/movies/{movie_id}", response_model=schemas.MovieResponse, tags=["Admin - Movie"])
 def update_movie(movie_id: int, movie: schemas.MovieUpdate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Movie
-    TODO: Database implement (db.query(models.Movie).update -> db.commit)
     """
-    # MOCK DATA: Replace with real database output
-    return {
-        "MID": movie_id,
-        "MName": movie.MName or "Updated Name",
-        "Genre": movie.Genre or "Action",
-        "Duration": movie.Duration or 120,
-        "AgeRating": movie.AgeRating or "G",
-        "ReleaseDate": movie.ReleaseDate or "2026-01-01",
-        "AID": 1
-    }
+    existing_movie = fetch_one(
+        db,
+        """
+        SELECT MID, MName, Genre, Duration, AgeRating, Description,
+               ReleaseDate, Actor, Director, ScoreRating, AID
+        FROM `Movie`
+        WHERE MID = :movie_id
+        """,
+        {"movie_id": movie_id},
+    )
+    if not existing_movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    update_data = movie.model_dump(exclude_unset=True)
+    if not update_data:
+        return dict(existing_movie)
+
+    set_clause = ", ".join(f"{column} = :{column}" for column in update_data.keys())
+    db.execute(
+        text(f"UPDATE `Movie` SET {set_clause} WHERE MID = :movie_id"),
+        {"movie_id": movie_id, **update_data},
+    )
+    db.commit()
+
+    updated_movie = fetch_one(
+        db,
+        """
+        SELECT MID, MName, Genre, Duration, AgeRating, Description,
+               ReleaseDate, Actor, Director, ScoreRating, AID
+        FROM `Movie`
+        WHERE MID = :movie_id
+        """,
+        {"movie_id": movie_id},
+    )
+    return dict(updated_movie)
 
 @app.delete("/api/admin/movies/{movie_id}", tags=["Admin - Movie"], status_code=status.HTTP_204_NO_CONTENT)
 def delete_movie(movie_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Movie
-    TODO: Database implement (db.delete WHERE MID = movie_id)
     """
-    # MOCK SUCCESS: Returns empty 204 response
+    ensure_record_exists(db, "Movie", "MID", movie_id, "Movie not found")
+    db.execute(text("DELETE FROM `Movie` WHERE MID = :movie_id"), {"movie_id": movie_id})
+    db.commit()
     return None
 
 # Admin Endpoints - Showtime
@@ -326,26 +486,79 @@ def delete_movie(movie_id: int, db: Session = Depends(get_db)):
 def create_showtime(showtime: schemas.ShowtimeCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Showtime
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**showtime.model_dump(), "ShowtimeID": 888}
+    ensure_record_exists(db, "Theater", "ThID", showtime.ThID, "Theater not found")
+    ensure_record_exists(db, "Movie", "MID", showtime.MID, "Movie not found")
+
+    result = db.execute(
+        text(
+            """
+            INSERT INTO `Showtime` (ShowDate, StartTime, EndTime, ThID, MID)
+            VALUES (:ShowDate, :StartTime, :EndTime, :ThID, :MID)
+            """
+        ),
+        showtime.model_dump(),
+    )
+    db.commit()
+
+    created_showtime = fetch_one(
+        db,
+        """
+        SELECT ShowtimeID, ShowDate, StartTime, EndTime, ThID, MID
+        FROM `Showtime`
+        WHERE ShowtimeID = :showtime_id
+        """,
+        {"showtime_id": result.lastrowid},
+    )
+    return dict(created_showtime)
 
 @app.put("/api/admin/showtimes/{showtime_id}", response_model=schemas.ShowtimeResponse, tags=["Admin - Showtime"])
 def update_showtime(showtime_id: int, showtime: schemas.ShowtimeCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Showtime
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**showtime.model_dump(), "ShowtimeID": showtime_id}
+    ensure_record_exists(db, "Showtime", "ShowtimeID", showtime_id, "Showtime not found")
+    ensure_record_exists(db, "Theater", "ThID", showtime.ThID, "Theater not found")
+    ensure_record_exists(db, "Movie", "MID", showtime.MID, "Movie not found")
+
+    db.execute(
+        text(
+            """
+            UPDATE `Showtime`
+            SET ShowDate = :ShowDate,
+                StartTime = :StartTime,
+                EndTime = :EndTime,
+                ThID = :ThID,
+                MID = :MID
+            WHERE ShowtimeID = :showtime_id
+            """
+        ),
+        {"showtime_id": showtime_id, **showtime.model_dump()},
+    )
+    db.commit()
+
+    updated_showtime = fetch_one(
+        db,
+        """
+        SELECT ShowtimeID, ShowDate, StartTime, EndTime, ThID, MID
+        FROM `Showtime`
+        WHERE ShowtimeID = :showtime_id
+        """,
+        {"showtime_id": showtime_id},
+    )
+    return dict(updated_showtime)
 
 @app.delete("/api/admin/showtimes/{showtime_id}", tags=["Admin - Showtime"], status_code=status.HTTP_204_NO_CONTENT)
 def delete_showtime(showtime_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Showtime
-    TODO: Database implement
     """
+    ensure_record_exists(db, "Showtime", "ShowtimeID", showtime_id, "Showtime not found")
+    db.execute(
+        text("DELETE FROM `Showtime` WHERE ShowtimeID = :showtime_id"),
+        {"showtime_id": showtime_id},
+    )
+    db.commit()
     return None
 
 # Admin Endpoints - Branch
@@ -354,26 +567,60 @@ def delete_showtime(showtime_id: int, db: Session = Depends(get_db)):
 def create_branch(branch: schemas.BranchCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Branch
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**branch.model_dump(), "BID": 1}
+    result = db.execute(
+        text(
+            """
+            INSERT INTO `Branch` (BName, BLocation, BPhoneNumber)
+            VALUES (:BName, :BLocation, :BPhoneNumber)
+            """
+        ),
+        branch.model_dump(),
+    )
+    db.commit()
+
+    created_branch = fetch_one(
+        db,
+        "SELECT BID, BName, BLocation, BPhoneNumber FROM `Branch` WHERE BID = :branch_id",
+        {"branch_id": result.lastrowid},
+    )
+    return dict(created_branch)
 
 @app.put("/api/admin/branches/{branch_id}", response_model=schemas.BranchResponse, tags=["Admin - Branch"])
 def update_branch(branch_id: int, branch: schemas.BranchCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Branch
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**branch.model_dump(), "BID": branch_id}
+    ensure_record_exists(db, "Branch", "BID", branch_id, "Branch not found")
+    db.execute(
+        text(
+            """
+            UPDATE `Branch`
+            SET BName = :BName,
+                BLocation = :BLocation,
+                BPhoneNumber = :BPhoneNumber
+            WHERE BID = :branch_id
+            """
+        ),
+        {"branch_id": branch_id, **branch.model_dump()},
+    )
+    db.commit()
+
+    updated_branch = fetch_one(
+        db,
+        "SELECT BID, BName, BLocation, BPhoneNumber FROM `Branch` WHERE BID = :branch_id",
+        {"branch_id": branch_id},
+    )
+    return dict(updated_branch)
 
 @app.delete("/api/admin/branches/{branch_id}", tags=["Admin - Branch"], status_code=status.HTTP_204_NO_CONTENT)
 def delete_branch(branch_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Branch
-    TODO: Database implement
     """
+    ensure_record_exists(db, "Branch", "BID", branch_id, "Branch not found")
+    db.execute(text("DELETE FROM `Branch` WHERE BID = :branch_id"), {"branch_id": branch_id})
+    db.commit()
     return None
 
 # Admin Endpoints - Theater
@@ -382,26 +629,63 @@ def delete_branch(branch_id: int, db: Session = Depends(get_db)):
 def create_theater(theater: schemas.TheaterCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Theater
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**theater.model_dump(), "ThID": 101}
+    ensure_record_exists(db, "Branch", "BID", theater.BID, "Branch not found")
+    result = db.execute(
+        text(
+            """
+            INSERT INTO `Theater` (ThNumber, ThType, Capacity, BID)
+            VALUES (:ThNumber, :ThType, :Capacity, :BID)
+            """
+        ),
+        theater.model_dump(),
+    )
+    db.commit()
+
+    created_theater = fetch_one(
+        db,
+        "SELECT ThID, ThNumber, ThType, Capacity, BID FROM `Theater` WHERE ThID = :theater_id",
+        {"theater_id": result.lastrowid},
+    )
+    return dict(created_theater)
 
 @app.put("/api/admin/theaters/{theater_id}", response_model=schemas.TheaterResponse, tags=["Admin - Theater"])
 def update_theater(theater_id: int, theater: schemas.TheaterCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Theater
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**theater.model_dump(), "ThID": theater_id}
+    ensure_record_exists(db, "Theater", "ThID", theater_id, "Theater not found")
+    ensure_record_exists(db, "Branch", "BID", theater.BID, "Branch not found")
+    db.execute(
+        text(
+            """
+            UPDATE `Theater`
+            SET ThNumber = :ThNumber,
+                ThType = :ThType,
+                Capacity = :Capacity,
+                BID = :BID
+            WHERE ThID = :theater_id
+            """
+        ),
+        {"theater_id": theater_id, **theater.model_dump()},
+    )
+    db.commit()
+
+    updated_theater = fetch_one(
+        db,
+        "SELECT ThID, ThNumber, ThType, Capacity, BID FROM `Theater` WHERE ThID = :theater_id",
+        {"theater_id": theater_id},
+    )
+    return dict(updated_theater)
 
 @app.delete("/api/admin/theaters/{theater_id}", tags=["Admin - Theater"], status_code=status.HTTP_204_NO_CONTENT)
 def delete_theater(theater_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Theater
-    TODO: Database implement
     """
+    ensure_record_exists(db, "Theater", "ThID", theater_id, "Theater not found")
+    db.execute(text("DELETE FROM `Theater` WHERE ThID = :theater_id"), {"theater_id": theater_id})
+    db.commit()
     return None
 
 # Admin Endpoints - Seat
@@ -410,26 +694,72 @@ def delete_theater(theater_id: int, db: Session = Depends(get_db)):
 def create_seat(seat: schemas.SeatCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Seat
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**seat.model_dump(), "SeatID": 5001}
+    ensure_record_exists(db, "Theater", "ThID", seat.ThID, "Theater not found")
+    result = db.execute(
+        text(
+            """
+            INSERT INTO `Seat` (SeatStatus, SeatRow, SeatNumber, SeatType, ThID)
+            VALUES (:SeatStatus, :SeatRow, :SeatNumber, :SeatType, :ThID)
+            """
+        ),
+        seat.model_dump(),
+    )
+    db.commit()
+
+    created_seat = fetch_one(
+        db,
+        """
+        SELECT SeatID, SeatStatus, SeatRow, SeatNumber, SeatType, ThID
+        FROM `Seat`
+        WHERE SeatID = :seat_id
+        """,
+        {"seat_id": result.lastrowid},
+    )
+    return dict(created_seat)
 
 @app.put("/api/admin/seats/{seat_id}", response_model=schemas.SeatResponse, tags=["Admin - Seat"])
 def update_seat(seat_id: int, seat: schemas.SeatCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Seat
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**seat.model_dump(), "SeatID": seat_id}
+    ensure_record_exists(db, "Seat", "SeatID", seat_id, "Seat not found")
+    ensure_record_exists(db, "Theater", "ThID", seat.ThID, "Theater not found")
+    db.execute(
+        text(
+            """
+            UPDATE `Seat`
+            SET SeatStatus = :SeatStatus,
+                SeatRow = :SeatRow,
+                SeatNumber = :SeatNumber,
+                SeatType = :SeatType,
+                ThID = :ThID
+            WHERE SeatID = :seat_id
+            """
+        ),
+        {"seat_id": seat_id, **seat.model_dump()},
+    )
+    db.commit()
+
+    updated_seat = fetch_one(
+        db,
+        """
+        SELECT SeatID, SeatStatus, SeatRow, SeatNumber, SeatType, ThID
+        FROM `Seat`
+        WHERE SeatID = :seat_id
+        """,
+        {"seat_id": seat_id},
+    )
+    return dict(updated_seat)
 
 @app.delete("/api/admin/seats/{seat_id}", tags=["Admin - Seat"], status_code=status.HTTP_204_NO_CONTENT)
 def delete_seat(seat_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Seat
-    TODO: Database implement
     """
+    ensure_record_exists(db, "Seat", "SeatID", seat_id, "Seat not found")
+    db.execute(text("DELETE FROM `Seat` WHERE SeatID = :seat_id"), {"seat_id": seat_id})
+    db.commit()
     return None
 
 # Admin Endpoints - Promotion
@@ -438,26 +768,84 @@ def delete_seat(seat_id: int, db: Session = Depends(get_db)):
 def create_promotion(promotion: schemas.PromotionCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Promotion
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**promotion.model_dump(), "PromotionID": 4001}
+    ensure_record_exists(db, "Admin", "AID", promotion.AID, "Admin not found")
+    result = db.execute(
+        text(
+            """
+            INSERT INTO `Promotion` (
+                PromotionName, DiscountType, DiscountValue, StartDate, EndDate, AID
+            )
+            VALUES (
+                :PromotionName, :DiscountType, :DiscountValue, :StartDate, :EndDate, :AID
+            )
+            """
+        ),
+        promotion.model_dump(),
+    )
+    db.commit()
+
+    created_promotion = fetch_one(
+        db,
+        """
+        SELECT PromotionID, PromotionName, DiscountType, DiscountValue, StartDate, EndDate, AID
+        FROM `Promotion`
+        WHERE PromotionID = :promotion_id
+        """,
+        {"promotion_id": result.lastrowid},
+    )
+    return dict(created_promotion)
 
 @app.put("/api/admin/promotions/{promotion_id}", response_model=schemas.PromotionResponse, tags=["Admin - Promotion"])
 def update_promotion(promotion_id: int, promotion: schemas.PromotionUpdate, db: Session = Depends(get_db)):
     """
     Admin Function: Edit Promotion
-    TODO: Database implement
     """
-    # MOCK DATA: Replace with real database output
-    return {**promotion.model_dump(), "PromotionID": promotion_id}
+    existing_promotion = fetch_one(
+        db,
+        """
+        SELECT PromotionID, PromotionName, DiscountType, DiscountValue, StartDate, EndDate, AID
+        FROM `Promotion`
+        WHERE PromotionID = :promotion_id
+        """,
+        {"promotion_id": promotion_id},
+    )
+    if not existing_promotion:
+        raise HTTPException(status_code=404, detail="Promotion not found")
+
+    update_data = promotion.model_dump(exclude_unset=True)
+    if not update_data:
+        return dict(existing_promotion)
+
+    set_clause = ", ".join(f"{column} = :{column}" for column in update_data.keys())
+    db.execute(
+        text(f"UPDATE `Promotion` SET {set_clause} WHERE PromotionID = :promotion_id"),
+        {"promotion_id": promotion_id, **update_data},
+    )
+    db.commit()
+
+    updated_promotion = fetch_one(
+        db,
+        """
+        SELECT PromotionID, PromotionName, DiscountType, DiscountValue, StartDate, EndDate, AID
+        FROM `Promotion`
+        WHERE PromotionID = :promotion_id
+        """,
+        {"promotion_id": promotion_id},
+    )
+    return dict(updated_promotion)
 
 @app.delete("/api/admin/promotions/{promotion_id}", tags=["Admin - Promotion"], status_code=status.HTTP_204_NO_CONTENT)
 def delete_promotion(promotion_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Delete Promotion
-    TODO: Database implement
     """
+    ensure_record_exists(db, "Promotion", "PromotionID", promotion_id, "Promotion not found")
+    db.execute(
+        text("DELETE FROM `Promotion` WHERE PromotionID = :promotion_id"),
+        {"promotion_id": promotion_id},
+    )
+    db.commit()
     return None
 
 # Admin Endpoints - Payment
@@ -466,18 +854,20 @@ def delete_promotion(promotion_id: int, db: Session = Depends(get_db)):
 def get_all_payments(payment_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Get All Payments
-    TODO: Database implement (SELECT * FROM Payment)
     """
-    # MOCK DATA: Replace with real database query output
-    return [
-        {
-            "PaymentID": payment_id,
-            "BookingID": 7777,
-            "Amount": 250.00,
-            "PaymentMethod": "Credit Card",
-            "PaymentStatus": "Completed"
-        }
-    ]
+    payment = fetch_one(
+        db,
+        """
+        SELECT PaymentID, Amount, PaymentStatus, PaymentDate, PaymentMethod, BookingID
+        FROM `Payment`
+        WHERE PaymentID = :payment_id
+        """,
+        {"payment_id": payment_id},
+    )
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    return [dict(payment)]
 
 # user endpoints
 
@@ -551,6 +941,41 @@ def get_movie_by_id(movie_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Movie not found")
 
     return dict(movie)
+
+@app.get("/api/users/{uid}/movies", response_model=List[schemas.MovieResponse], tags=["User - Cinema"])
+def get_user_related_movies(uid: int, db: Session = Depends(get_db)):
+    """
+    User Function: Get movies linked to a user via booking or review history
+    """
+    ensure_record_exists(db, "User", "UID", uid, "User not found")
+
+    movies = db.execute(
+        text(
+            """
+            SELECT DISTINCT
+                m.MID,
+                m.MName,
+                m.Genre,
+                m.Duration,
+                m.AgeRating,
+                m.Description,
+                m.ReleaseDate,
+                m.Actor,
+                m.Director,
+                m.ScoreRating,
+                m.AID
+            FROM `Movie` m
+            LEFT JOIN `Showtime` s ON s.MID = m.MID
+            LEFT JOIN `Booking` b ON b.ShowtimeID = s.ShowtimeID
+            LEFT JOIN `Review` r ON r.MID = m.MID
+            WHERE b.UID = :uid OR r.UID = :uid
+            ORDER BY m.ReleaseDate DESC, m.MID DESC
+            """
+        ),
+        {"uid": uid},
+    ).mappings().all()
+
+    return [dict(movie) for movie in movies]
 
 @app.get("/api/movies/{movie_id}/showtimes", response_model=List[schemas.MovieShowtimeDateGroupResponse], tags=["User - Cinema"])
 def get_showtimes_by_movie_id(movie_id: int, db: Session = Depends(get_db)):

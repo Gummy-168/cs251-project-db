@@ -45,3 +45,28 @@ export interface MovieDetail {
   director: MovieDetailPerson[];
   cast: MovieDetailPerson[];
 }
+
+export interface AdminMovieCreatePayload {
+  MName: string;
+  Genre: string;
+  Duration: number;
+  AgeRating: string;
+  Description?: string | null;
+  ReleaseDate: string;
+  Actor?: string | null;
+  Director?: string | null;
+  ScoreRating?: number | null;
+  AID: number;
+}
+
+export interface AdminMovieUpdatePayload {
+  MName?: string;
+  Genre?: string;
+  Duration?: number;
+  AgeRating?: string;
+  Description?: string | null;
+  ReleaseDate?: string;
+  Actor?: string | null;
+  Director?: string | null;
+  ScoreRating?: number | null;
+}

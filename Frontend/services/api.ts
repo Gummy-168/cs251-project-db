@@ -1,4 +1,6 @@
 import type {
+  AdminMovieCreatePayload,
+  AdminMovieUpdatePayload,
   BackendMovie,
   MovieCard,
   MovieDetail,
@@ -233,6 +235,10 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(detail);
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json() as Promise<T>;
 }
 
@@ -256,6 +262,10 @@ export async function getShowtimesByMovieId(
   );
   return mapShowtimeGroups(groups);
 }
+
+// ==========================================
+// User Booking & Review Functions (From HEAD)
+// ==========================================
 
 export async function getSeatsByShowtimeId(
   showtimeId: string | number
@@ -291,6 +301,39 @@ export async function submitReview(
     body: JSON.stringify(reviewData),
   });
 }
+
+// ==========================================
+// Admin Functions (From Incoming Pull)
+// ==========================================
+
+export async function createAdminMovie(
+  payload: AdminMovieCreatePayload
+): Promise<BackendMovie> {
+  return apiFetch<BackendMovie>("/api/admin/movies", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminMovie(
+  movieId: string | number,
+  payload: AdminMovieUpdatePayload
+): Promise<BackendMovie> {
+  return apiFetch<BackendMovie>(`/api/admin/movies/${movieId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteAdminMovie(movieId: string | number): Promise<void> {
+  return apiFetch<void>(`/api/admin/movies/${movieId}`, {
+    method: "DELETE",
+  });
+}
+
+// ==========================================
+// Authentication & User Profile Functions
+// ==========================================
 
 export async function registerUser(
   userData: UserRegisterPayload
