@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import date, time
+from typing import List, Optional
 
 # Showtime Schemas
 class ShowtimeBase(BaseModel):
@@ -16,4 +17,26 @@ class ShowtimeCreate(ShowtimeBase):
 class ShowtimeResponse(ShowtimeBase):
     ShowtimeID: int
     model_config = ConfigDict(from_attributes=True)
+
+class ShowtimeSlotResponse(BaseModel):
+    ShowtimeID: int
+    StartTime: str
+    EndTime: str
+    Language: str
+
+class TheaterShowtimeGroupResponse(BaseModel):
+    ThID: int
+    ThName: str
+    Format: Optional[str] = None
+    Showtimes: List[ShowtimeSlotResponse]
+
+class BranchShowtimeGroupResponse(BaseModel):
+    BID: int
+    BName: str
+    BLocation: str
+    Theaters: List[TheaterShowtimeGroupResponse]
+
+class MovieShowtimeDateGroupResponse(BaseModel):
+    ShowDate: date
+    Branches: List[BranchShowtimeGroupResponse]
 # \end of Showtime Schemas

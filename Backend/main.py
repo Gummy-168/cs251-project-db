@@ -264,6 +264,122 @@ def search_movies(name: str = None, date: str = None, branch: str = None, db: Se
         }
     ]
 
+@app.get("/api/movies/{movie_id}", response_model=schemas.MovieResponse, tags=["User - Cinema"])
+def get_movie_by_id(movie_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Get Movie Detail by ID
+    TODO: Database implement (SELECT * FROM Movie WHERE MID = movie_id)
+    """
+    if movie_id != 1:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    return {
+        "MID": 1,
+        "MName": "Jujutsu Kaisen 0",
+        "Genre": "Action, Anime",
+        "Duration": 105,
+        "AgeRating": "PG-13",
+        "Description": "เรื่องราวของ ยูตะ โอคคตสึ เด็กหนุ่มที่ถูกคำสาปร้ายติดตามจากวิญญาณของริกะ จนต้องเข้าสู่โลกไสยเวทเพื่อเรียนรู้การควบคุมพลังและปกป้องคนรอบตัว",
+        "ReleaseDate": "2026-04-14",
+        "Actor": "Junya Enoki, Yuma Uchida, Asami Seto",
+        "Director": "Sunghoo Park",
+        "ScoreRating": 8.9,
+        "AID": 1
+    }
+
+@app.get("/api/movies/{movie_id}/showtimes", response_model=List[schemas.MovieShowtimeDateGroupResponse], tags=["User - Cinema"])
+def get_showtimes_by_movie_id(movie_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Get all showtimes for one movie
+    TODO: Database implement (SELECT showtimes + theater + branch WHERE MID = movie_id)
+    """
+    if movie_id != 1:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    return [
+        {
+            "ShowDate": "2026-05-14",
+            "Branches": [
+                {
+                    "BID": 1,
+                    "BName": "Rangsit",
+                    "BLocation": "4th Floor, Rangsit",
+                    "Theaters": [
+                        {
+                            "ThID": 101,
+                            "ThName": "Theater 04",
+                            "Format": "4DX",
+                            "Showtimes": [
+                                {"ShowtimeID": 1001, "StartTime": "11:30", "EndTime": "13:15", "Language": "EN / TH"},
+                                {"ShowtimeID": 1002, "StartTime": "14:15", "EndTime": "16:00", "Language": "EN / TH"},
+                                {"ShowtimeID": 1003, "StartTime": "16:45", "EndTime": "18:30", "Language": "EN / TH"},
+                                {"ShowtimeID": 1004, "StartTime": "19:45", "EndTime": "21:30", "Language": "EN / TH"},
+                                {"ShowtimeID": 1005, "StartTime": "22:30", "EndTime": "00:15", "Language": "EN / TH"}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "BID": 2,
+                    "BName": "The Forest Gallery EmQuartier",
+                    "BLocation": "6th Floor, The Helix Quartier, Bangkok",
+                    "Theaters": [
+                        {
+                            "ThID": 201,
+                            "ThName": "Theater 01",
+                            "Format": "IMAX Laser",
+                            "Showtimes": [
+                                {"ShowtimeID": 1101, "StartTime": "10:00", "EndTime": "11:45", "Language": "EN / TH"},
+                                {"ShowtimeID": 1102, "StartTime": "13:30", "EndTime": "15:15", "Language": "EN / TH"},
+                                {"ShowtimeID": 1103, "StartTime": "16:45", "EndTime": "18:30", "Language": "EN / TH"},
+                                {"ShowtimeID": 1104, "StartTime": "20:45", "EndTime": "22:30", "Language": "EN / TH"}
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "ShowDate": "2026-05-15",
+            "Branches": [
+                {
+                    "BID": 3,
+                    "BName": "Eco-Cine Siam Discovery",
+                    "BLocation": "4th Floor, Siam Discovery, Bangkok",
+                    "Theaters": [
+                        {
+                            "ThID": 301,
+                            "ThName": "Theater 02",
+                            "Format": None,
+                            "Showtimes": [
+                                {"ShowtimeID": 1201, "StartTime": "12:00", "EndTime": "13:45", "Language": "EN / TH"},
+                                {"ShowtimeID": 1202, "StartTime": "15:30", "EndTime": "17:15", "Language": "EN / TH"},
+                                {"ShowtimeID": 1203, "StartTime": "18:45", "EndTime": "20:30", "Language": "EN / TH"}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "BID": 1,
+                    "BName": "Rangsit",
+                    "BLocation": "4th Floor, Rangsit",
+                    "Theaters": [
+                        {
+                            "ThID": 102,
+                            "ThName": "Theater 05",
+                            "Format": "IMAX",
+                            "Showtimes": [
+                                {"ShowtimeID": 1301, "StartTime": "11:45", "EndTime": "13:30", "Language": "EN / TH"},
+                                {"ShowtimeID": 1302, "StartTime": "17:15", "EndTime": "19:00", "Language": "EN / TH"},
+                                {"ShowtimeID": 1303, "StartTime": "20:30", "EndTime": "22:15", "Language": "EN / TH"}
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+
 @app.get("/api/showtimes/{showtime_id}/seats", response_model=List[schemas.SeatResponse], tags=["User - Cinema"])
 def check_available_seats(showtime_id: int, db: Session = Depends(get_db)):
     """

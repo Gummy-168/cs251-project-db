@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 
-type SeatStatus = "standard" | "premium" | "selected" | "unavailable";
+type SeatStatus = "standard" | "premium" | "unavailable";
 
 type Seat = {
   id: string;
@@ -34,8 +36,8 @@ const seats: Seat[] = [
   { id: "K3", row: "K", status: "premium" },
   { id: "K4", row: "K", status: "premium" },
   { id: "K5", row: "K", status: "premium" },
-  { id: "K6", row: "K", status: "selected" },
-  { id: "K7", row: "K", status: "selected" },
+  { id: "K6", row: "K", status: "premium" },
+  { id: "K7", row: "K", status: "premium" },
   { id: "K8", row: "K", status: "premium" },
 
   { id: "L1", row: "L", status: "unavailable" },
@@ -49,35 +51,30 @@ const seats: Seat[] = [
 ];
 
 const rows = ["A", "B", "K", "L"];
-
-function ProfileIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="2" />
-      <path
-        d="M5.5 18.5C6.7 15.9 9 14.5 12 14.5C15 14.5 17.3 15.9 18.5 18.5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-    </svg>
-  );
-}
+const STANDARD_PRICE = 200;
+const PREMIUM_PRICE = 250;
 
 function SeatIcon({
   status,
+  selected = false,
   small = false,
+  onClick,
 }: {
   status: SeatStatus;
+  selected?: boolean;
   small?: boolean;
+  onClick?: () => void;
 }) {
-  const color =
-    status === "selected"
-      ? "text-[#6FDE76]"
-      : status === "premium"
-      ? "text-[#FFD34E]"
-      : "text-[#D4E9D2]";
+  const isUnavailable = status === "unavailable";
+  const isPremium = status === "premium";
+
+  const color = isUnavailable
+    ? "text-[#D4E9D2]"
+    : selected
+    ? "text-[#6FDE76]"
+    : isPremium
+    ? "text-[#FFD34E]"
+    : "text-[#D4E9D2]";
 
   const iconSize = small ? 24 : 40;
   const boxClass = small ? "h-8 w-8" : "h-14 w-14";
@@ -85,8 +82,13 @@ function SeatIcon({
   return (
     <button
       type="button"
-      disabled={status === "unavailable"}
-      className={`flex ${boxClass} items-center justify-center ${color}`}
+      disabled={isUnavailable}
+      onClick={onClick}
+      className={`flex ${boxClass} items-center justify-center transition ${
+        isUnavailable
+          ? "cursor-not-allowed opacity-45"
+          : "cursor-pointer hover:scale-105"
+      } ${color}`}
     >
       <svg
         width={iconSize}
@@ -98,7 +100,7 @@ function SeatIcon({
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        {status === "unavailable" ? (
+        {isUnavailable ? (
           <>
             <circle cx="12" cy="7" r="3" />
             <path d="M6.5 19v-1.2c0-2.7 2.4-4.8 5.5-4.8s5.5 2.1 5.5 4.8V19" />
@@ -181,53 +183,100 @@ function TicketIcon() {
   );
 }
 
-export default function BookingPage() {
-  const [code, setCode] = useState("");
+export default function StatePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const showtimeId = searchParams.get("showtimeId");
+  const movieId = searchParams.get("movieId");
 
-  const selectedSeats = seats.filter((seat) => seat.status === "selected");
-  const total = selectedSeats.length * 250;
+  const [code, setCode] = useState("");
+  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
+
+  const seatsById = useMemo(
+    () => Object.fromEntries(seats.map((seat) => [seat.id, seat])),
+    []
+  );
+
+  const selectedSeatData = useMemo(
+    () => selectedSeats.map((seatId) => seatsById[seatId]).filter(Boolean),
+    [selectedSeats, seatsById]
+  );
+
+  const total = selectedSeatData.reduce((sum, seat) => {
+    return sum + (seat.status === "premium" ? PREMIUM_PRICE : STANDARD_PRICE);
+  }, 0);
+
+  function toggleSeat(seatId: string) {
+    const seat = seatsById[seatId];
+    if (!seat || seat.status === "unavailable") {
+      return;
+    }
+
+    setSelectedSeats((current) =>
+      current.includes(seatId)
+        ? current.filter((id) => id !== seatId)
+        : [...current, seatId]
+    );
+  }
+
+  function handlePurchase() {
+    if (!showtimeId || selectedSeats.length === 0) {
+      return;
+    }
+
+    const params = new URLSearchParams({
+      showtimeId,
+      seatIds: selectedSeats.join(","),
+    });
+
+    if (movieId) {
+      params.set("movieId", movieId);
+    }
+
+    router.push(`/User/Payment?${params.toString()}`);
+  }
 
   return (
     <main className="min-h-screen w-full bg-[#061008] text-[#D4E9D2]">
       <div className="mx-auto w-full px-8 pb-8 pt-1">
         <nav className="flex h-[78px] items-center justify-between">
           <div className="flex items-center gap-12">
-            <a
+            <Link
               href="/User/Home"
               className="font-serif text-[34px] uppercase tracking-wide text-[#6FDE76]"
             >
               Emerald Cinema
-            </a>
+            </Link>
 
             <div className="flex items-center gap-10 text-[16px] font-medium text-[#D4E9D2]">
-              <a href="/User/Home" className="transition hover:text-[#6FDE76]">
+              <Link href="/User/Home" className="transition hover:text-[#6FDE76]">
                 หน้าหลัก
-              </a>
-              <a href="/User/Movies" className="transition hover:text-[#6FDE76]">
+              </Link>
+              <Link href="/User/Movies" className="transition hover:text-[#6FDE76]">
                 ภาพยนตร์
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/User/Promotion"
                 className="transition hover:text-[#6FDE76]"
               >
                 โปรโมชั่น
-              </a>
-              <a href="/User/Ticket" className="transition hover:text-[#6FDE76]">
+              </Link>
+              <Link href="/User/Ticket" className="transition hover:text-[#6FDE76]">
                 ตั๋วของฉัน
-              </a>
+              </Link>
             </div>
           </div>
 
-          <a
+          <Link
             href="/User/Profile"
             className="text-[#6FDE76] transition hover:scale-105"
           >
             ◎
-          </a>
+          </Link>
         </nav>
 
         <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <section className="relative min-h-[760px] rounded-[38px] bg-[#0E1C12] px-14 pt-16 pb-10 shadow-[inset_0_0_50px_rgba(78,189,90,0.05)]">
+          <section className="relative min-h-[760px] rounded-[38px] bg-[#0E1C12] px-14 pb-10 pt-16 shadow-[inset_0_0_50px_rgba(78,189,90,0.05)]">
             <div className="mx-auto mt-4 h-[8px] w-[78%] rounded-full bg-[#4EBD5A]/80 shadow-[0_0_28px_rgba(78,189,90,0.45)]" />
 
             <p className="mt-5 text-center text-[16px] font-semibold text-[#D4E9D2]">
@@ -248,13 +297,23 @@ export default function BookingPage() {
                     </span>
 
                     {rowSeats.slice(0, 4).map((seat) => (
-                      <SeatIcon key={seat.id} status={seat.status} />
+                      <SeatIcon
+                        key={seat.id}
+                        status={seat.status}
+                        selected={selectedSeats.includes(seat.id)}
+                        onClick={() => toggleSeat(seat.id)}
+                      />
                     ))}
 
                     <div />
 
                     {rowSeats.slice(4, 8).map((seat) => (
-                      <SeatIcon key={seat.id} status={seat.status} />
+                      <SeatIcon
+                        key={seat.id}
+                        status={seat.status}
+                        selected={selectedSeats.includes(seat.id)}
+                        onClick={() => toggleSeat(seat.id)}
+                      />
                     ))}
 
                     <span className="text-[17px] font-semibold text-[#D4E9D2]">
@@ -268,16 +327,16 @@ export default function BookingPage() {
             <div className="absolute bottom-12 left-1/2 flex w-[88%] -translate-x-1/2 items-center justify-between rounded-full bg-[#17251A] px-12 py-5 text-[13px]">
               <div className="flex items-center gap-3 text-[#D4E9D2]">
                 <SeatIcon status="standard" small />
-                <span>STANDARD (200฿)</span>
+                <span>STANDARD ({STANDARD_PRICE}฿)</span>
               </div>
 
               <div className="flex items-center gap-3 text-[#FFD34E]">
                 <SeatIcon status="premium" small />
-                <span>PREMIUM (250฿)</span>
+                <span>PREMIUM ({PREMIUM_PRICE}฿)</span>
               </div>
 
               <div className="flex items-center gap-3 text-[#6FDE76]">
-                <SeatIcon status="selected" small />
+                <SeatIcon status="standard" selected small />
                 <span>SELECTED</span>
               </div>
 
@@ -336,17 +395,28 @@ export default function BookingPage() {
                     Date & Time
                   </p>
                 </div>
-                <p className="text-[16px] font-bold text-white">วันนี้ 16:45</p>
+                <p className="text-[16px] font-bold text-white">
+                  Showtime #{showtimeId ?? "-"}
+                </p>
               </div>
             </div>
 
             <div className="mt-8 space-y-7">
               <div className="flex items-center justify-between">
                 <span className="text-[15px] text-[#D4E9D2]/80">
-                  ที่นั่งที่เลือก
+                  จำนวนที่นั่ง
                 </span>
                 <span className="text-[16px] font-bold text-[#6FDE76]">
-                  {selectedSeats.map((seat) => seat.id).join(", ")}
+                  {selectedSeats.length}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-[15px] text-[#D4E9D2]/80">
+                  ที่นั่งที่เลือก
+                </span>
+                <span className="text-right text-[16px] font-bold text-[#6FDE76]">
+                  {selectedSeats.length > 0 ? selectedSeats.join(", ") : "-"}
                 </span>
               </div>
 
@@ -375,13 +445,18 @@ export default function BookingPage() {
             </div>
 
             <button
-  type="button"
-  onClick={() => window.location.href = "/User/Payment"}
-  className="mt-10 flex w-full items-center justify-center gap-3 rounded-full bg-[#6FDE76] py-5 text-[18px] font-bold text-[#061008] shadow-[0_12px_30px_rgba(111,222,118,0.35)] transition hover:bg-[#5ad764]"
->
-  <span>ซื้อตั๋ว</span>
-  <TicketIcon />
-</button>
+              type="button"
+              disabled={selectedSeats.length === 0 || !showtimeId}
+              onClick={handlePurchase}
+              className={`mt-10 flex w-full items-center justify-center gap-3 rounded-full py-5 text-[18px] font-bold shadow-[0_12px_30px_rgba(111,222,118,0.35)] transition ${
+                selectedSeats.length === 0 || !showtimeId
+                  ? "cursor-not-allowed bg-[#3f5742] text-[#b7c7b8] shadow-none"
+                  : "bg-[#6FDE76] text-[#061008] hover:bg-[#5ad764]"
+              }`}
+            >
+              <span>ซื้อตั๋ว</span>
+              <TicketIcon />
+            </button>
           </aside>
         </div>
       </div>
