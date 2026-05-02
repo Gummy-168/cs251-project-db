@@ -248,7 +248,11 @@ export default function BookingPage() {
               />
             </div>
 
-            {filteredBranches.length === 0 ? (
+            {showtimeGroups.length === 0 ? (
+              <div className="rounded-[36px] bg-[#232C24] px-7 py-10 text-center text-sm text-[#d4e9d2]/80">
+                ขออภัย ยังไม่มีรอบฉายสำหรับภาพยนตร์เรื่องนี้ในขณะนี้
+              </div>
+            ) : filteredBranches.length === 0 ? (
               <div className="rounded-[36px] bg-[#232C24] px-7 py-6 text-sm text-[#d4e9d2]/80">
                 ไม่พบรอบฉายสำหรับวันที่หรือคำค้นหานี้
               </div>

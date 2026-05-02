@@ -8,6 +8,13 @@ import type {
   BackendMovieShowtimeDateGroup,
   MovieShowtimeDateGroup,
 } from "@/types/booking";
+import type {
+  UserAuth,
+  UserRegisterPayload,
+  UserSigninPayload,
+  UserSigninResponse,
+  UserUpdatePayload,
+} from "@/types/user";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8000";
@@ -170,6 +177,34 @@ export async function getShowtimesByMovieId(
     `/api/movies/${movieId}/showtimes`
   );
   return mapShowtimeGroups(groups);
+}
+
+export async function registerUser(
+  userData: UserRegisterPayload
+): Promise<UserAuth> {
+  return apiFetch<UserAuth>("/api/users/register", {
+    method: "POST",
+    body: JSON.stringify(userData),
+  });
+}
+
+export async function signInUser(
+  credentials: UserSigninPayload
+): Promise<UserSigninResponse> {
+  return apiFetch<UserSigninResponse>("/api/users/signin", {
+    method: "POST",
+    body: JSON.stringify(credentials),
+  });
+}
+
+export async function updateUserProfile(
+  uid: string | number,
+  userData: UserUpdatePayload
+): Promise<UserAuth> {
+  return apiFetch<UserAuth>(`/api/users/${uid}`, {
+    method: "PUT",
+    body: JSON.stringify(userData),
+  });
 }
 
 export { API_BASE_URL };

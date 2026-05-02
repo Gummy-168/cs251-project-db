@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { signInUser } from "@/services/api";
 import {
   AUTH_COOKIE_NAME,
   DEFAULT_AUTH_REDIRECT,
@@ -14,24 +15,42 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSignIn = () => {
+  const handleSignIn = async () => {
     if (!email || !password) {
       alert("กรุณากรอกอีเมลและรหัสผ่าน");
       return;
     }
 
-    document.cookie = `${AUTH_COOKIE_NAME}=1; path=/; max-age=${60 * 60 * 24 * 7}; samesite=lax`;
+    try {
+      setLoading(true);
+      setError(null);
 
-    const requestedCallbackUrl = searchParams.get("callbackUrl");
-    const callbackUrl =
-      requestedCallbackUrl && requestedCallbackUrl.startsWith("/")
-        ? requestedCallbackUrl
-        : DEFAULT_AUTH_REDIRECT;
+      const response = await signInUser({
+        UEmail: email.trim(),
+        UPassword: password,
+      });
 
-    alert("เข้าสู่ระบบสำเร็จ");
-    router.push(callbackUrl);
-    router.refresh();
+      localStorage.setItem("emerald_user", JSON.stringify(response.user));
+      document.cookie = `${AUTH_COOKIE_NAME}=1; path=/; max-age=${60 * 60 * 24 * 7}; samesite=lax`;
+
+      const requestedCallbackUrl = searchParams.get("callbackUrl");
+      const callbackUrl =
+        requestedCallbackUrl && requestedCallbackUrl.startsWith("/")
+          ? requestedCallbackUrl
+          : DEFAULT_AUTH_REDIRECT;
+
+      router.push(callbackUrl);
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "ไม่สามารถเข้าสู่ระบบได้"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -72,14 +91,23 @@ export default function LoginPage() {
             />
           </div>
 
+          {error && (
+            <p className="text-sm font-medium text-red-600">{error}</p>
+          )}
+
           {/* Button */}
           <div className="pt-4 text-center">
             <button
               type="button"
               onClick={handleSignIn}
-              className="h-[40px] w-[210px] rounded-[5px] bg-[#4fc263] text-white transition hover:bg-[#63e86f] hover:text-[#06160a]"
+              disabled={loading}
+              className={`h-[40px] w-[210px] rounded-[5px] text-white transition ${
+                loading
+                  ? "cursor-not-allowed bg-[#89a58f]"
+                  : "bg-[#4fc263] hover:bg-[#63e86f] hover:text-[#06160a]"
+              }`}
             >
-              Sign In
+              {loading ? "Signing In..." : "Sign In"}
             </button>
 
             <a

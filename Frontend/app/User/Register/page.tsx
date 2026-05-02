@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { registerUser } from "@/services/api";
+
 export default function RegisterPage() {
   const router = useRouter();
 
@@ -11,8 +13,10 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [tel, setTel] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (
       !displayName ||
       !username ||
@@ -24,8 +28,26 @@ export default function RegisterPage() {
       return;
     }
 
-    alert("สมัครสมาชิกสำเร็จ");
-    router.push("/User/Signin"); 
+    try {
+      setLoading(true);
+      setError(null);
+
+      await registerUser({
+        Username: username.trim(),
+        UName: displayName.trim(),
+        UEmail: email.trim(),
+        UPhoneNumber: tel.trim(),
+        UPassword: password,
+      });
+
+      router.push("/User/Signin");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "ไม่สามารถสมัครสมาชิกได้"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -50,7 +72,7 @@ export default function RegisterPage() {
           {/* Display Name */}
           <div>
             <label className="mb-2 block text-[16px] text-[#333]">
-              Display name
+              Name
             </label>
 
             <input
@@ -122,14 +144,23 @@ export default function RegisterPage() {
             />
           </div>
 
+          {error && (
+            <p className="text-sm font-medium text-red-600">{error}</p>
+          )}
+
           {/* Button */}
           <div className="pt-5 text-center">
             <button
               type="button"
               onClick={handleRegister}
-              className="h-[40px] w-[210px] rounded-[5px] bg-[#4fc263] text-white transition hover:bg-[#63e86f] hover:text-[#06160a]"
+              disabled={loading}
+              className={`h-[40px] w-[210px] rounded-[5px] text-white transition ${
+                loading
+                  ? "cursor-not-allowed bg-[#89a58f]"
+                  : "bg-[#4fc263] hover:bg-[#63e86f] hover:text-[#06160a]"
+              }`}
             >
-              Register
+              {loading ? "Registering..." : "Register"}
             </button>
           </div>
         </form>

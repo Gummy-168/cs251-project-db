@@ -125,7 +125,13 @@ export default function MoviesPage() {
           </div>
         )}
 
-        {!loading && !error && visibleMovies.length === 0 && (
+        {!loading && !error && movies.length === 0 && (
+          <div className="mt-16 flex min-h-[280px] items-center justify-center rounded-3xl border border-white/10 bg-[#172319] px-6 py-5 text-center text-base font-medium text-white/70">
+            ขณะนี้ยังไม่มีภาพยนตร์เข้าฉาย
+          </div>
+        )}
+
+        {!loading && !error && movies.length > 0 && visibleMovies.length === 0 && (
           <div className="mt-8 rounded-2xl border border-white/10 bg-[#172319] px-6 py-5 text-sm text-white/70">
             ไม่พบภาพยนตร์ในหมวดหมู่นี้
           </div>

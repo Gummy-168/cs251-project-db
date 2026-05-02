@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import engine, SessionLocal
 from typing import List
+import hashlib
 import models
 import schemas
 
@@ -36,6 +37,20 @@ def get_db():
     finally:
         db.close()
 
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+
+def serialize_user_row(row) -> dict:
+    return {
+        "UID": row["UID"],
+        "Username": row["Username"],
+        "UName": row["UName"],
+        "UEmail": row["UEmail"],
+        "UPhoneNumber": row["UPhoneNumber"],
+    }
+
 @app.get("/api/db-test")
 def db_test(db: Session = Depends(get_db)):
     """
@@ -46,6 +61,189 @@ def db_test(db: Session = Depends(get_db)):
         return {"message": "Database connected successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+
+
+@app.post("/api/users/register", response_model=schemas.UserResponse, tags=["User - Auth"], status_code=status.HTTP_201_CREATED)
+def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    """
+    User Function: Register new user
+    """
+    existing_user = db.execute(
+        text(
+            """
+            SELECT UID, Username, UEmail, UPhoneNumber
+            FROM `User`
+            WHERE Username = :username
+               OR UEmail = :email
+               OR UPhoneNumber = :phone
+            """
+        ),
+        {
+            "username": user.Username,
+            "email": user.UEmail,
+            "phone": user.UPhoneNumber,
+        },
+    ).mappings().first()
+
+    if existing_user:
+        if existing_user["Username"] == user.Username:
+            raise HTTPException(status_code=409, detail="Username already exists")
+        if existing_user["UEmail"] == user.UEmail:
+            raise HTTPException(status_code=409, detail="Email already exists")
+        if existing_user["UPhoneNumber"] == user.UPhoneNumber:
+            raise HTTPException(status_code=409, detail="Phone number already exists")
+
+    result = db.execute(
+        text(
+            """
+            INSERT INTO `User` (Username, UName, UPassword, UEmail, UPhoneNumber)
+            VALUES (:username, :name, :password, :email, :phone)
+            """
+        ),
+        {
+            "username": user.Username,
+            "name": user.UName,
+            "password": hash_password(user.UPassword),
+            "email": user.UEmail,
+            "phone": user.UPhoneNumber,
+        },
+    )
+    db.commit()
+
+    created_user = db.execute(
+        text(
+            """
+            SELECT UID, Username, UName, UEmail, UPhoneNumber
+            FROM `User`
+            WHERE UID = :uid
+            """
+        ),
+        {"uid": result.lastrowid},
+    ).mappings().first()
+
+    if not created_user:
+        raise HTTPException(status_code=500, detail="User registration failed")
+
+    return serialize_user_row(created_user)
+
+
+@app.post("/api/users/signin", response_model=schemas.UserSigninResponse, tags=["User - Auth"])
+def signin_user(credentials: schemas.UserLogin, db: Session = Depends(get_db)):
+    """
+    User Function: Sign in with username or email
+    """
+    if not credentials.Username and not credentials.UEmail:
+        raise HTTPException(status_code=400, detail="Username or email is required")
+
+    user = db.execute(
+        text(
+            """
+            SELECT UID, Username, UName, UPassword, UEmail, UPhoneNumber
+            FROM `User`
+            WHERE Username = :username OR UEmail = :email
+            LIMIT 1
+            """
+        ),
+        {
+            "username": credentials.Username,
+            "email": credentials.UEmail,
+        },
+    ).mappings().first()
+
+    if not user or user["UPassword"] != hash_password(credentials.UPassword):
+        raise HTTPException(status_code=401, detail="Invalid username/email or password")
+
+    return {
+        "success": True,
+        "user": serialize_user_row(user),
+    }
+
+
+@app.put("/api/users/{uid}", response_model=schemas.UserResponse, tags=["User - Auth"])
+def update_user_profile(uid: int, user: schemas.UserUpdate, db: Session = Depends(get_db)):
+    """
+    User Function: Update user profile
+    """
+    existing_user = db.execute(
+        text(
+            """
+            SELECT UID, Username, UEmail, UPhoneNumber
+            FROM `User`
+            WHERE UID = :uid
+            """
+        ),
+        {"uid": uid},
+    ).mappings().first()
+
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    duplicate_user = db.execute(
+        text(
+            """
+            SELECT UID, Username, UEmail, UPhoneNumber
+            FROM `User`
+            WHERE UID <> :uid
+              AND (
+                Username = :username
+                OR UEmail = :email
+                OR UPhoneNumber = :phone
+              )
+            LIMIT 1
+            """
+        ),
+        {
+            "uid": uid,
+            "username": user.Username,
+            "email": user.UEmail,
+            "phone": user.UPhoneNumber,
+        },
+    ).mappings().first()
+
+    if duplicate_user:
+        if duplicate_user["Username"] == user.Username:
+            raise HTTPException(status_code=409, detail="Username already exists")
+        if duplicate_user["UEmail"] == user.UEmail:
+            raise HTTPException(status_code=409, detail="Email already exists")
+        if duplicate_user["UPhoneNumber"] == user.UPhoneNumber:
+            raise HTTPException(status_code=409, detail="Phone number already exists")
+
+    db.execute(
+        text(
+            """
+            UPDATE `User`
+            SET Username = :username,
+                UName = :name,
+                UEmail = :email,
+                UPhoneNumber = :phone
+            WHERE UID = :uid
+            """
+        ),
+        {
+            "uid": uid,
+            "username": user.Username,
+            "name": user.UName,
+            "email": user.UEmail,
+            "phone": user.UPhoneNumber,
+        },
+    )
+    db.commit()
+
+    updated_user = db.execute(
+        text(
+            """
+            SELECT UID, Username, UName, UEmail, UPhoneNumber
+            FROM `User`
+            WHERE UID = :uid
+            """
+        ),
+        {"uid": uid},
+    ).mappings().first()
+
+    if not updated_user:
+        raise HTTPException(status_code=500, detail="User update failed")
+
+    return serialize_user_row(updated_user)
 
 # Admin Endpoints - Movie
 
@@ -251,18 +449,37 @@ def search_movies(name: str = None, date: str = None, branch: str = None, db: Se
     User Function: Search Movie and Showtime
     TODO: Database implement (SELECT with filters)
     """
-    # MOCK DATA: Replace with real database query output
-    return [
-        {
-            "MID": 1,
-            "MName": "Jujutsu Kaisen 0",
-            "Genre": "Action",
-            "Duration": 105,
-            "AgeRating": "PG-13",
-            "ReleaseDate": "2026-04-14",
-            "AID": 1
-        }
-    ]
+    query = """
+        SELECT
+            MID,
+            MName,
+            Genre,
+            Duration,
+            AgeRating,
+            Description,
+            ReleaseDate,
+            Actor,
+            Director,
+            ScoreRating,
+            AID
+        FROM Movie
+        WHERE 1 = 1
+    """
+
+    params = {}
+
+    if name:
+        query += " AND MName LIKE :name"
+        params["name"] = f"%{name}%"
+
+    if date:
+        query += " AND ReleaseDate = :release_date"
+        params["release_date"] = date
+
+    query += " ORDER BY ReleaseDate DESC, MID DESC"
+
+    movies = db.execute(text(query), params).mappings().all()
+    return [dict(movie) for movie in movies]
 
 @app.get("/api/movies/{movie_id}", response_model=schemas.MovieResponse, tags=["User - Cinema"])
 def get_movie_by_id(movie_id: int, db: Session = Depends(get_db)):
@@ -270,22 +487,32 @@ def get_movie_by_id(movie_id: int, db: Session = Depends(get_db)):
     User Function: Get Movie Detail by ID
     TODO: Database implement (SELECT * FROM Movie WHERE MID = movie_id)
     """
-    if movie_id != 1:
+    movie = db.execute(
+        text(
+            """
+            SELECT
+                MID,
+                MName,
+                Genre,
+                Duration,
+                AgeRating,
+                Description,
+                ReleaseDate,
+                Actor,
+                Director,
+                ScoreRating,
+                AID
+            FROM Movie
+            WHERE MID = :movie_id
+            """
+        ),
+        {"movie_id": movie_id},
+    ).mappings().first()
+
+    if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
 
-    return {
-        "MID": 1,
-        "MName": "Jujutsu Kaisen 0",
-        "Genre": "Action, Anime",
-        "Duration": 105,
-        "AgeRating": "PG-13",
-        "Description": "เรื่องราวของ ยูตะ โอคคตสึ เด็กหนุ่มที่ถูกคำสาปร้ายติดตามจากวิญญาณของริกะ จนต้องเข้าสู่โลกไสยเวทเพื่อเรียนรู้การควบคุมพลังและปกป้องคนรอบตัว",
-        "ReleaseDate": "2026-04-14",
-        "Actor": "Junya Enoki, Yuma Uchida, Asami Seto",
-        "Director": "Sunghoo Park",
-        "ScoreRating": 8.9,
-        "AID": 1
-    }
+    return dict(movie)
 
 @app.get("/api/movies/{movie_id}/showtimes", response_model=List[schemas.MovieShowtimeDateGroupResponse], tags=["User - Cinema"])
 def get_showtimes_by_movie_id(movie_id: int, db: Session = Depends(get_db)):
@@ -293,92 +520,101 @@ def get_showtimes_by_movie_id(movie_id: int, db: Session = Depends(get_db)):
     User Function: Get all showtimes for one movie
     TODO: Database implement (SELECT showtimes + theater + branch WHERE MID = movie_id)
     """
-    if movie_id != 1:
+    movie_exists = db.execute(
+        text("SELECT MID FROM Movie WHERE MID = :movie_id"),
+        {"movie_id": movie_id},
+    ).first()
+
+    if not movie_exists:
         raise HTTPException(status_code=404, detail="Movie not found")
 
-    return [
-        {
-            "ShowDate": "2026-05-14",
-            "Branches": [
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                s.ShowDate,
+                s.ShowtimeID,
+                TIME_FORMAT(s.StartTime, '%H:%i') AS StartTime,
+                TIME_FORMAT(s.EndTime, '%H:%i') AS EndTime,
+                b.BID,
+                b.BName,
+                b.BLocation,
+                t.ThID,
+                t.ThNumber,
+                t.ThType
+            FROM Showtime s
+            JOIN Theater t ON s.ThID = t.ThID
+            JOIN Branch b ON t.BID = b.BID
+            WHERE s.MID = :movie_id
+            ORDER BY s.ShowDate ASC, b.BID ASC, t.ThNumber ASC, s.StartTime ASC
+            """
+        ),
+        {"movie_id": movie_id},
+    ).mappings().all()
+
+    grouped_by_date = {}
+
+    for row in rows:
+        show_date_key = row["ShowDate"].isoformat()
+        date_group = grouped_by_date.setdefault(
+            show_date_key,
+            {
+                "ShowDate": row["ShowDate"],
+                "Branches": {},
+            },
+        )
+
+        branch_group = date_group["Branches"].setdefault(
+            row["BID"],
+            {
+                "BID": row["BID"],
+                "BName": row["BName"],
+                "BLocation": row["BLocation"],
+                "Theaters": {},
+            },
+        )
+
+        theater_group = branch_group["Theaters"].setdefault(
+            row["ThID"],
+            {
+                "ThID": row["ThID"],
+                "ThName": f"Theater {int(row['ThNumber']):02d}",
+                "Format": row["ThType"],
+                "Showtimes": [],
+            },
+        )
+
+        theater_group["Showtimes"].append(
+            {
+                "ShowtimeID": row["ShowtimeID"],
+                "StartTime": row["StartTime"],
+                "EndTime": row["EndTime"],
+                "Language": "EN / TH",
+            }
+        )
+
+    response = []
+    for date_group in grouped_by_date.values():
+        branches = []
+        for branch_group in date_group["Branches"].values():
+            theaters = list(branch_group["Theaters"].values())
+            branches.append(
                 {
-                    "BID": 1,
-                    "BName": "Rangsit",
-                    "BLocation": "4th Floor, Rangsit",
-                    "Theaters": [
-                        {
-                            "ThID": 101,
-                            "ThName": "Theater 04",
-                            "Format": "4DX",
-                            "Showtimes": [
-                                {"ShowtimeID": 1001, "StartTime": "11:30", "EndTime": "13:15", "Language": "EN / TH"},
-                                {"ShowtimeID": 1002, "StartTime": "14:15", "EndTime": "16:00", "Language": "EN / TH"},
-                                {"ShowtimeID": 1003, "StartTime": "16:45", "EndTime": "18:30", "Language": "EN / TH"},
-                                {"ShowtimeID": 1004, "StartTime": "19:45", "EndTime": "21:30", "Language": "EN / TH"},
-                                {"ShowtimeID": 1005, "StartTime": "22:30", "EndTime": "00:15", "Language": "EN / TH"}
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "BID": 2,
-                    "BName": "The Forest Gallery EmQuartier",
-                    "BLocation": "6th Floor, The Helix Quartier, Bangkok",
-                    "Theaters": [
-                        {
-                            "ThID": 201,
-                            "ThName": "Theater 01",
-                            "Format": "IMAX Laser",
-                            "Showtimes": [
-                                {"ShowtimeID": 1101, "StartTime": "10:00", "EndTime": "11:45", "Language": "EN / TH"},
-                                {"ShowtimeID": 1102, "StartTime": "13:30", "EndTime": "15:15", "Language": "EN / TH"},
-                                {"ShowtimeID": 1103, "StartTime": "16:45", "EndTime": "18:30", "Language": "EN / TH"},
-                                {"ShowtimeID": 1104, "StartTime": "20:45", "EndTime": "22:30", "Language": "EN / TH"}
-                            ]
-                        }
-                    ]
+                    "BID": branch_group["BID"],
+                    "BName": branch_group["BName"],
+                    "BLocation": branch_group["BLocation"],
+                    "Theaters": theaters,
                 }
-            ]
-        },
-        {
-            "ShowDate": "2026-05-15",
-            "Branches": [
-                {
-                    "BID": 3,
-                    "BName": "Eco-Cine Siam Discovery",
-                    "BLocation": "4th Floor, Siam Discovery, Bangkok",
-                    "Theaters": [
-                        {
-                            "ThID": 301,
-                            "ThName": "Theater 02",
-                            "Format": None,
-                            "Showtimes": [
-                                {"ShowtimeID": 1201, "StartTime": "12:00", "EndTime": "13:45", "Language": "EN / TH"},
-                                {"ShowtimeID": 1202, "StartTime": "15:30", "EndTime": "17:15", "Language": "EN / TH"},
-                                {"ShowtimeID": 1203, "StartTime": "18:45", "EndTime": "20:30", "Language": "EN / TH"}
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "BID": 1,
-                    "BName": "Rangsit",
-                    "BLocation": "4th Floor, Rangsit",
-                    "Theaters": [
-                        {
-                            "ThID": 102,
-                            "ThName": "Theater 05",
-                            "Format": "IMAX",
-                            "Showtimes": [
-                                {"ShowtimeID": 1301, "StartTime": "11:45", "EndTime": "13:30", "Language": "EN / TH"},
-                                {"ShowtimeID": 1302, "StartTime": "17:15", "EndTime": "19:00", "Language": "EN / TH"},
-                                {"ShowtimeID": 1303, "StartTime": "20:30", "EndTime": "22:15", "Language": "EN / TH"}
-                            ]
-                        }
-                    ]
-                }
-            ]
-        }
-    ]
+            )
+
+        response.append(
+            {
+                "ShowDate": date_group["ShowDate"],
+                "Branches": branches,
+            }
+        )
+
+    return response
 
 @app.get("/api/showtimes/{showtime_id}/seats", response_model=List[schemas.SeatResponse], tags=["User - Cinema"])
 def check_available_seats(showtime_id: int, db: Session = Depends(get_db)):
