@@ -163,3 +163,37 @@ CREATE TABLE IF NOT EXISTS Payment (
         ON UPDATE CASCADE
         ON DELETE RESTRICT
 )
+
+-- Table: Promotion
+CREATE TABLE IF NOT EXISTS Promotion (
+    PromotionID INT AUTO_INCREMENT PRIMARY KEY,
+    PromotionName VARCHAR(100) NOT NULL,
+    DiscountType VARCHAR(20) NOT NULL CHECK (DiscountType IN ('Percentage', 'Fixed Amount')),
+    DiscountValue DECIMAL(10,2) NOT NULL CHECK (DiscountValue >= 0),
+    StartDate DATE NOT NULL,
+    EndDate DATE NOT NULL,
+    AID INT NOT NULL,
+    CONSTRAINT chk_promotion_date CHECK (EndDate >= StartDate),
+    CONSTRAINT fk_promotion_admin
+        FOREIGN KEY (AID) REFERENCES Admin(AID)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+
+-- Table: Review
+CREATE TABLE IF NOT EXISTS Review (
+    ReviewID INT AUTO_INCREMENT PRIMARY KEY,
+    ReviewDate DATE NOT NULL,
+    ReviewScore INT NOT NULL CHECK (ReviewScore BETWEEN 1 AND 5),
+    Comment TEXT,
+    UID INT NOT NULL,
+    MID INT NOT NULL,
+    CONSTRAINT fk_review_user
+        FOREIGN KEY (UID) REFERENCES User(UID)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_review_movie
+        FOREIGN KEY (MID) REFERENCES Movie(MID)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
