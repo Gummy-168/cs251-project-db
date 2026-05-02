@@ -1,4 +1,4 @@
-'use client'; // Added this so we can track the current URL path
+'use client';
 
 import React from 'react';
 import Link from 'next/link';
@@ -13,8 +13,11 @@ export default function AdminLayout({
   const pathname = usePathname(); // Gets the current active URL
   const router = useRouter();
 
-  // Helper function: returns true if the current path matches the link
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) => pathname.startsWith(path);
+
+  if (pathname === '/Admin/login') {
+    return <>{children}</>;
+  }
 
   return (
     <div className="flex h-screen bg-[#0d1510] text-gray-200 font-sans overflow-hidden">
@@ -83,7 +86,7 @@ export default function AdminLayout({
         <div className="px-6">
           <button
             type="button"
-            onClick={() => router.push('/login')}
+            onClick={() => router.push('/Admin/login')}
             className="w-full flex items-center justify-center gap-2 bg-[#2a3d31] hover:bg-[#344b3c] text-gray-300 py-2 rounded text-sm font-semibold transition-colors"
           >
             LOG OUT

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Calendar, Search, Heart, Droplet, Ticket, Diamond, Trash2, Plus } from 'lucide-react';
+import Link from 'next/link';
 
 export default function EventHandling() {
   const promotions = [
@@ -96,9 +97,9 @@ export default function EventHandling() {
       </div>
 
       {/* Floating Action Button */}
-      <button className="absolute bottom-10 right-10 w-14 h-14 bg-emerald-400 hover:bg-emerald-300 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-900/50 transition-colors">
+      <Link href="/Admin/eventHandling/promotion" className="absolute bottom-10 right-10 w-14 h-14 bg-emerald-400 hover:bg-emerald-300 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-900/50 transition-colors">
         <Plus className="w-8 h-8 text-[#0a100c]" />
-      </button>
+      </Link>
     </>
   );
 }
