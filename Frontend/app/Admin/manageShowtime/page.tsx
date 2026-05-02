@@ -183,7 +183,9 @@ export default function ManageShowtimePage() {
 
       {/* Floating Action Button */}
       <Link 
-        href="/Admin/manageShowtime/addShowtime"
+        href={`/Admin/manageShowtime/addShowtime?date=${encodeURIComponent(
+          selectedDate || new Date().toISOString().slice(0, 10),
+        )}`}
         className="absolute bottom-10 right-10 w-14 h-14 bg-emerald-400 hover:bg-emerald-300 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-900/50 transition-colors z-40"
       >
         <CalendarPlus className="w-7 h-7 text-[#0a100c]" />
