@@ -127,6 +127,24 @@ docker compose up --build
 docker compose up --build -d
 ```
 
+### หมายเหตุเรื่อง `init.sql`
+
+MySQL จะรันไฟล์ใน `/docker-entrypoint-initdb.d/` เฉพาะตอนที่ volume ของ database ยังว่างอยู่เท่านั้น  
+ถ้าเคยสร้าง container/volume ไปแล้ว ไฟล์ `sql/init.sql` จะไม่ถูกรันซ้ำอัตโนมัติ
+
+หากต้องการให้ MySQL สร้าง schema ใหม่จาก `sql/init.sql` ให้ reset database volume ก่อน:
+
+```bash
+docker compose down -v
+docker compose up --build -d
+```
+
+จากนั้นตรวจสอบ log ได้ด้วย:
+
+```bash
+docker compose logs db
+```
+
 ---
 
 ## Stop Docker Compose

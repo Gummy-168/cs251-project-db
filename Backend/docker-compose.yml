@@ -10,13 +10,20 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p1234"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   backend:
     build: .
     container_name: backend-cs251-container
     restart: always
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "8000:8000"
     environment:
