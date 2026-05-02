@@ -40,6 +40,7 @@ export default function HomePage() {
   ];
 
   const [movies, setMovies] = useState<MovieCard[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,7 +61,28 @@ export default function HomePage() {
     loadMovies();
   }, []);
 
-  const nowPlayingMovies = useMemo(() => movies.slice(0, 4), [movies]);
+  const filteredMovies = useMemo(() => {
+    if (selectedCategory === "All") {
+      return movies;
+    }
+
+    const normalizedCategory = selectedCategory.trim().toLowerCase();
+
+    return movies.filter((movie) => {
+      const genreText = movie.genre.trim().toLowerCase();
+      const genreList = movie.genres.map((genre) => genre.trim().toLowerCase());
+
+      return (
+        genreText.includes(normalizedCategory) ||
+        genreList.some((genre) => genre.includes(normalizedCategory))
+      );
+    });
+  }, [movies, selectedCategory]);
+
+  const nowPlayingMovies = useMemo(
+    () => filteredMovies.slice(0, 4),
+    [filteredMovies]
+  );
 
   const topMovies = useMemo(() => {
     return [...movies]
@@ -168,7 +190,9 @@ export default function HomePage() {
 
             {!loading && !error && nowPlayingMovies.length === 0 && (
               <div className="rounded-2xl border border-white/10 bg-[#172319] px-6 py-5 text-sm text-white/70">
-                ขณะนี้ยังไม่มีภาพยนตร์เข้าฉาย
+                {selectedCategory === "All"
+                  ? "ขณะนี้ยังไม่มีภาพยนตร์เข้าฉาย"
+                  : `ยังไม่พบภาพยนตร์ในหมวด ${selectedCategory}`}
               </div>
             )}
 
@@ -176,15 +200,22 @@ export default function HomePage() {
               <div className="grid grid-cols-4 gap-8">
                 {nowPlayingMovies.map((movie) => (
                   <article key={movie.id} className="w-full">
-                    <div className="mb-4 flex h-[420px] w-full items-center justify-center overflow-hidden rounded-[22px] bg-[#172319]">
-                      <img
-                        src={movie.image}
-                        alt={movie.title}
-                        className="h-full w-full object-contain object-center"
-                      />
-                    </div>
+                    <Link
+                      href={`/User/Movie-detail?movieId=${movie.id}`}
+                      className="group block"
+                    >
+                      <div className="mb-4 flex h-[420px] w-full items-center justify-center overflow-hidden rounded-[22px] bg-[#172319] transition group-hover:scale-[1.01] group-hover:ring-2 group-hover:ring-[#63e86f]/80">
+                        <img
+                          src={movie.image}
+                          alt={movie.title}
+                          className="h-full w-full object-contain object-center transition duration-300 group-hover:scale-[1.02]"
+                        />
+                      </div>
 
-                    <h3 className="mb-4 text-base font-black">{movie.title}</h3>
+                      <h3 className="mb-4 text-base font-black transition group-hover:text-[#63e86f]">
+                        {movie.title}
+                      </h3>
+                    </Link>
 
                     <Link
                       href={`/User/Booking?movieId=${movie.id}`}
@@ -210,13 +241,20 @@ export default function HomePage() {
                     {index + 1}
                   </div>
 
-                  <img
-                    src={movie.image}
-                    alt={movie.title}
-                    className="h-[62px] w-[46px] rounded-md object-cover object-center"
-                  />
+                  <Link
+                    href={`/User/Movie-detail?movieId=${movie.id}`}
+                    className="flex min-w-0 items-center gap-4 transition hover:opacity-90"
+                  >
+                    <img
+                      src={movie.image}
+                      alt={movie.title}
+                      className="h-[62px] w-[46px] rounded-md object-cover object-center"
+                    />
 
-                  <p className="text-sm font-black leading-tight">{movie.title}</p>
+                    <p className="text-sm font-black leading-tight transition hover:text-[#63e86f]">
+                      {movie.title}
+                    </p>
+                  </Link>
                 </div>
               ))}
             </div>
@@ -229,8 +267,10 @@ export default function HomePage() {
               {categories.map((category) => (
                 <button
                   key={category}
+                  type="button"
+                  onClick={() => setSelectedCategory(category)}
                   className={`rounded-full px-5 py-2.5 text-xs font-black transition ${
-                    category === "All"
+                    selectedCategory === category
                       ? "bg-[#63e86f] text-black"
                       : "bg-[#273028] text-white hover:bg-[#4ebd5a] hover:text-black"
                   }`}
