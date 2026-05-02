@@ -129,7 +129,7 @@ export default function HomePage() {
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-4xl font-black">โปรโมชั่นพิเศษ</h2>
 
-              <Link href="/User/Movies" className="text-base font-bold text-[#63e86f]">
+              <Link href="/User/Promotion" className="text-base font-bold text-[#63e86f]">
                 ดูทั้งหมด
               </Link>
             </div>

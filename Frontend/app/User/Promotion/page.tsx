@@ -152,13 +152,6 @@ export default function PromotionPage() {
               โปรโมชั่นพิเศษและประสบการณ์พิเศษเฉพาะสมาชิก
             </p>
           </div>
-
-          <Link
-            href="/User/Movies"
-            className="hidden rounded-full bg-[#4ebd5a] px-7 py-3 text-sm font-black text-[#06160a] shadow-lg shadow-[#4ebd5a]/15 transition hover:bg-[#63e86f] md:inline-flex"
-          >
-            ทั้งหมด
-          </Link>
         </div>
 
         {loading ? (
