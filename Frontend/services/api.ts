@@ -8,6 +8,7 @@ import type {
 } from "@/types/movie";
 import type {
   AdminShowtimeCreatePayload,
+  BackendAdminShowtimeListRecord,
   BackendBookingReview,
   BackendAdminShowtimeRecord,
   BackendMovieShowtimeDateGroup,
@@ -431,6 +432,36 @@ export async function getPerformanceLogs(
   return apiFetch<PerformanceLogPage>(
     `/api/admin/reports/performance${queryString ? `?${queryString}` : ""}`
   );
+}
+
+// ==========================================
+// Admin Showtime Functions (From Incoming)
+// ==========================================
+
+export async function getAdminShowtimes(params?: {
+  showDate?: string;
+  movieName?: string;
+}): Promise<BackendAdminShowtimeListRecord[]> {
+  const query = new URLSearchParams();
+
+  if (params?.showDate) {
+    query.set("show_date", params.showDate);
+  }
+  if (params?.movieName) {
+    query.set("movie_name", params.movieName);
+  }
+
+  const path =
+    query.size > 0
+      ? `/api/admin/showtimes?${query.toString()}`
+      : "/api/admin/showtimes";
+  return apiFetch<BackendAdminShowtimeListRecord[]>(path);
+}
+
+export async function deleteAdminShowtime(showtimeId: number): Promise<void> {
+  return apiFetch<void>(`/api/admin/showtimes/${showtimeId}`, {
+    method: "DELETE",
+  });
 }
 
 // ==========================================

@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, CalendarDays, Clapperboard, Save } from 'lucide-react';
-import { createAdminShowtime } from '@/services/api';
+import { createAdminShowtime, getAdminShowtimes, getMovies } from '@/services/api';
 
 const SHOWTIME_STORAGE_KEY = 'emerald_admin_showtimes';
 
@@ -22,6 +22,17 @@ export default function AddShowtimePage() {
   const [saving, setSaving] = useState(false);
 
   const isValidShowtime = useMemo(() => /^([01]\d|2[0-3]):([0-5]\d)$/.test(showtimeInput), [showtimeInput]);
+
+  function buildEndTime(startTime: string) {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const start = new Date(2000, 0, 1, hours, minutes, 0);
+    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+    const isCrossingDay = end.getDate() !== start.getDate();
+    if (isCrossingDay) {
+      return null;
+    }
+    return `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}:00`;
+  }
 
   async function handleSave(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

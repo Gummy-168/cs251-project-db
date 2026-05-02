@@ -12,7 +12,7 @@ class ShowtimeBase(BaseModel):
     MID: int
 
 class ShowtimeCreate(ShowtimeBase):
-    pass
+    EndTime: Optional[time] = None
 
 
 class AdminShowtimeCreate(BaseModel):

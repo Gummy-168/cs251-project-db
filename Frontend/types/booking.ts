@@ -165,14 +165,11 @@ export interface ReviewRecord {
 }
 
 export interface AdminShowtimeCreatePayload {
-  MID?: number;
-  MovieKeyword?: string;
-  ThID?: number;
-  Branch: string;
-  Theater: string;
+  MID: number;
+  ThID: number;
   ShowDate: string;
   StartTime: string;
-  EndTime?: string;
+  EndTime: string;
 }
 
 export interface BackendAdminShowtimeRecord {
@@ -182,4 +179,19 @@ export interface BackendAdminShowtimeRecord {
   ShowDate: string;
   StartTime: string;
   EndTime: string;
+}
+
+export interface BackendAdminShowtimeListRecord {
+  ShowtimeID: number;
+  ShowDate: string;
+  StartTime: string;
+  EndTime: string;
+  MID: number;
+  MName: string;
+  ThID: number;
+  ThNumber: number;
+  ThType: string;
+  BID: number;
+  BName: string;
+  BLocation: string;
 }
