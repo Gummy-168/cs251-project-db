@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createBooking } from "@/services/api";
+import { createBooking, validatePromoCode } from "@/services/api";
+import type { PromotionValidateResult } from "@/types/promotion";
 
 export default function PaymentPage() {
   const router = useRouter();
@@ -17,6 +18,11 @@ export default function PaymentPage() {
   const [uid, setUid] = useState<number | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoValidation, setPromoValidation] =
+    useState<PromotionValidateResult | null>(null);
+  const [promoMessage, setPromoMessage] = useState<string | null>(null);
+  const [applyingPromo, setApplyingPromo] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const seatIds = useMemo(
@@ -91,6 +97,52 @@ export default function PaymentPage() {
     total > 0 &&
     !submitting;
 
+  const finalTotal = useMemo(() => {
+    if (!promoValidation?.IsValid) {
+      return total;
+    }
+
+    const parsedFinalPrice = Number(promoValidation.FinalPrice);
+    return Number.isFinite(parsedFinalPrice) && parsedFinalPrice >= 0
+      ? parsedFinalPrice
+      : total;
+  }, [promoValidation, total]);
+
+  async function handleApplyPromoCode() {
+    if (!promoCode.trim()) {
+      setPromoValidation(null);
+      setPromoMessage("กรุณากรอก Promo Code");
+      return;
+    }
+
+    if (total <= 0) {
+      setPromoValidation(null);
+      setPromoMessage("ไม่พบยอดชำระสำหรับใช้คำนวณส่วนลด");
+      return;
+    }
+
+    try {
+      setApplyingPromo(true);
+      setPromoMessage(null);
+      setError(null);
+
+      const result = await validatePromoCode({
+        PromoCode: promoCode.trim(),
+        TotalPrice: total,
+      });
+
+      setPromoValidation(result);
+      setPromoMessage(result.Message);
+    } catch (err) {
+      setPromoValidation(null);
+      setPromoMessage(
+        err instanceof Error ? err.message : "ไม่สามารถตรวจสอบ Promo Code ได้"
+      );
+    } finally {
+      setApplyingPromo(false);
+    }
+  }
+
   async function handleConfirmPayment() {
     if (!canConfirmPayment || parsedShowtimeId === null || uid === null) {
       return;
@@ -104,6 +156,10 @@ export default function PaymentPage() {
         ShowtimeID: parsedShowtimeId,
         UID: uid,
         Seats: parsedSeats,
+        PromotionID:
+          promoValidation?.IsValid && promoValidation.PromotionID
+            ? promoValidation.PromotionID
+            : null,
       });
 
       alert("ชำระเงินสำเร็จและบันทึกการจองเรียบร้อยแล้ว");
@@ -196,8 +252,53 @@ export default function PaymentPage() {
           <div className="mt-8">
             <p className="text-gray-400 text-sm">ยอดที่ต้องชำระ</p>
             <p className="text-4xl font-black text-[#63e86f] mt-1">
-              {total.toLocaleString()} <span className="text-lg">THB</span>
+              {finalTotal.toLocaleString()} <span className="text-lg">THB</span>
             </p>
+          </div>
+
+          <div className="mt-6 rounded-[24px] bg-[#1f2820] p-4 text-left">
+            <p className="text-gray-400 text-sm mb-3">Promo Code</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={promoCode}
+                onChange={(event) => setPromoCode(event.target.value)}
+                placeholder="กรอกรหัสโปรโมชั่น"
+                className="h-[44px] flex-1 rounded-[14px] bg-[#0f160f] px-4 text-sm text-white outline-none placeholder:text-gray-500"
+              />
+              <button
+                type="button"
+                onClick={handleApplyPromoCode}
+                disabled={applyingPromo}
+                className="rounded-[14px] bg-[#63e86f] px-4 text-sm font-bold text-black transition hover:bg-[#4ebd5a] disabled:cursor-not-allowed disabled:bg-[#89a58f]"
+              >
+                {applyingPromo ? "กำลังตรวจ..." : "ตกลง"}
+              </button>
+            </div>
+
+            {promoValidation?.IsValid && (
+              <div className="mt-3 space-y-1 text-sm">
+                <p className="text-[#63e86f]">
+                  ใช้งานโปรโมชัน: {promoValidation.PromotionName}
+                </p>
+                <p className="text-gray-300">
+                  ส่วนลด: {Number(promoValidation.DiscountAmount).toLocaleString()} THB
+                </p>
+                <p className="text-gray-300">
+                  ราคาสุทธิใหม่: {finalTotal.toLocaleString()} THB
+                </p>
+              </div>
+            )}
+
+            {promoMessage && (
+              <p
+                className={`mt-3 text-xs ${
+                  promoValidation?.IsValid ? "text-[#9df3a7]" : "text-red-200"
+                }`}
+              >
+                {promoMessage}
+              </p>
+            )}
           </div>
 
           <p className="mt-6 text-gray-400 text-sm">

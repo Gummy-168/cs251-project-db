@@ -12,6 +12,7 @@ class BookingCreate(BaseModel):
     ShowtimeID: int
     UID: int
     Seats: list[BookingSeatSelection]
+    PromotionID: Optional[int] = None
 
 
 class BookingResponse(BaseModel):

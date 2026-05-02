@@ -1,5 +1,6 @@
 from .movie import MovieCreate, MovieUpdate, MovieResponse
 from .showTime import (
+    AdminShowtimeCreate,
     ShowtimeCreate,
     ShowtimeResponse,
     ShowtimeSlotResponse,
@@ -20,5 +21,11 @@ from .booking import (
 from .payment import PaymentCreate, PaymentResponse
 from .review import ReviewCreate, ReviewResponse
 from .ticket import TicketCreate, TicketResponse
-from .promotion import PromotionCreate, PromotionResponse, PromotionUpdate
+from .promotion import (
+    PromotionCreate,
+    PromotionResponse,
+    PromotionUpdate,
+    PromotionValidateRequest,
+    PromotionValidateResponse,
+)
 from .user import UserCreate, UserLogin, UserUpdate, UserResponse, UserSigninResponse

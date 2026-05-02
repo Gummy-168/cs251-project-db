@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from datetime import date, time
 from typing import List, Optional
 
@@ -13,6 +13,30 @@ class ShowtimeBase(BaseModel):
 
 class ShowtimeCreate(ShowtimeBase):
     pass
+
+
+class AdminShowtimeCreate(BaseModel):
+    MID: Optional[int] = None
+    MovieKeyword: Optional[str] = None
+    ThID: Optional[int] = None
+    Branch: Optional[str] = None
+    Theater: Optional[str] = None
+    ShowDate: date
+    StartTime: time
+    EndTime: Optional[time] = None
+
+    @model_validator(mode="after")
+    def validate_identity_fields(self):
+        if self.MID is None and not (self.MovieKeyword and self.MovieKeyword.strip()):
+            raise ValueError("MID or MovieKeyword is required")
+
+        if self.ThID is None:
+            if not (self.Branch and self.Branch.strip()):
+                raise ValueError("Branch is required when ThID is not provided")
+            if not (self.Theater and self.Theater.strip()):
+                raise ValueError("Theater is required when ThID is not provided")
+
+        return self
 
 class ShowtimeResponse(ShowtimeBase):
     ShowtimeID: int

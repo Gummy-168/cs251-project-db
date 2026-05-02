@@ -1,4 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+
+import { getActivePromotions } from "@/services/api";
+import type { PromotionRecord } from "@/types/promotion";
 
 const navItems = [
   { label: "หน้าหลัก", href: "/User/Home" },
@@ -7,52 +13,68 @@ const navItems = [
   { label: "ตั๋วของฉัน", href: "/User/Ticket" },
 ];
 
-const promotions = [
-  {
-    title: "ส่วนลดวันพุธ",
-    description:
-      "รับส่วนลด 20% สำหรับนักเรียน นักศึกษา และสมาชิก Emerald เมื่อซื้อตั๋วรอบที่ร่วมรายการผ่านหน้าเว็บ",
-    image: "/image/Summer Blockbuster.png",
-    badge: "SPECIAL",
-  },
-  {
-    title: "Jujutsu Kaisen Popcorn Set",
-    description:
-      "Limited edition popcorn bucket and drink set. รับไอเทมสะสมพิเศษพร้อมชุดป๊อปคอร์นสำหรับแฟนอนิเมะ",
-    image: "/image/Movie Night Combo.png",
-    badge: "NEW",
-  },
-  {
-    title: "Credit Card Promotion",
-    description:
-      "Discount for K-Bank and SCB cardholders. รับส่วนลดพิเศษเมื่อชำระด้วยบัตรเครดิตที่ร่วมรายการ",
-    image: "/image/Emerald Member Card.png",
-    badge: "-15%",
-  },
-  {
-    title: "ส่วนลดนักศึกษา (Student Price)",
-    description:
-      "นักเรียนและนักศึกษาแสดงบัตร รับราคาพิเศษสำหรับรอบก่อน 18:00 น. ทุกวันจันทร์ถึงพฤหัสบดี",
-    image: "/image/Early Bird Tickets.png",
-    badge: "STUDENT",
-  },
-  {
-    title: "Movie Night Combo",
-    description:
-      "คอมโบป๊อปคอร์นและเครื่องดื่มสำหรับสองคนในราคาพิเศษ เหมาะสำหรับคืนดูหนังหลังเลิกงาน",
-    image: "/image/Jujutsu Kaisen 0.png.webp",
-    badge: "SAVE",
-  },
-  {
-    title: "Emerald Member Day",
-    description:
-      "สมาชิก Emerald Cinema รับแต้มคูณสองทุกวันพุธ พร้อมสิทธิ์แลกของพรีเมียมก่อนใคร",
-    image: "/image/Old Town Stories.png",
-    badge: "2X",
-  },
+const promotionImages = [
+  "/image/Summer Blockbuster.png",
+  "/image/Movie Night Combo.png",
+  "/image/Emerald Member Card.png",
+  "/image/Early Bird Tickets.png",
+  "/image/Jujutsu Kaisen 0.png.webp",
+  "/image/Old Town Stories.png",
 ];
 
+function formatPromotionDescription(promotion: PromotionRecord) {
+  const value = Number(promotion.DiscountValue);
+
+  if (promotion.DiscountType === "Percentage") {
+    return `รับส่วนลด ${value}% สำหรับโปรโมชัน ${promotion.PromotionName} ตั้งแต่ ${promotion.StartDate} ถึง ${promotion.EndDate}`;
+  }
+
+  return `รับส่วนลด ${value.toLocaleString()} บาท สำหรับโปรโมชัน ${promotion.PromotionName} ตั้งแต่ ${promotion.StartDate} ถึง ${promotion.EndDate}`;
+}
+
+function formatPromotionBadge(promotion: PromotionRecord) {
+  const value = Number(promotion.DiscountValue);
+
+  if (promotion.DiscountType === "Percentage") {
+    return `-${value}%`;
+  }
+
+  return "SAVE";
+}
+
 export default function PromotionPage() {
+  const [promotions, setPromotions] = useState<PromotionRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadPromotions() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getActivePromotions();
+        setPromotions(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "ไม่สามารถโหลดโปรโมชั่นได้");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadPromotions();
+  }, []);
+
+  const promotionCards = useMemo(
+    () =>
+      promotions.map((promotion, index) => ({
+        ...promotion,
+        image: promotionImages[index % promotionImages.length],
+        badge: formatPromotionBadge(promotion),
+        description: formatPromotionDescription(promotion),
+      })),
+    [promotions]
+  );
+
   return (
     <main className="min-h-screen bg-[#06160a] text-[#d4e9d2]">
       <nav className="fixed left-0 top-0 z-50 flex h-[72px] w-full items-center bg-[#06160a] px-8">
@@ -139,34 +161,48 @@ export default function PromotionPage() {
           </Link>
         </div>
 
-        <div className="grid gap-9 sm:grid-cols-2 xl:grid-cols-3">
-          {promotions.map((promotion) => (
-            <article
-              key={promotion.title}
-              className="overflow-hidden rounded-[28px] bg-[#273028] shadow-xl shadow-black/25 transition duration-300 hover:-translate-y-1 hover:bg-[#334235]"
-            >
-              <div className="relative h-[260px] overflow-hidden bg-black">
-                <img
-                  src={promotion.image}
-                  alt={promotion.title}
-                  className="h-full w-full object-cover"
-                />
-                <span className="absolute right-4 top-4 rounded-full bg-[#f1cf44] px-4 py-1.5 text-[11px] font-black uppercase tracking-wide text-[#06160a]">
-                  {promotion.badge}
-                </span>
-              </div>
+        {loading ? (
+          <div className="rounded-[28px] bg-[#273028] px-7 py-6 text-sm font-semibold text-[#d4e9d2]">
+            กำลังโหลดโปรโมชั่น...
+          </div>
+        ) : error ? (
+          <div className="rounded-[28px] bg-[#273028] px-7 py-6 text-sm font-semibold text-red-200">
+            {error}
+          </div>
+        ) : promotionCards.length === 0 ? (
+          <div className="rounded-[28px] bg-[#273028] px-7 py-6 text-sm font-semibold text-[#d4e9d2]">
+            ยังไม่มีโปรโมชั่นที่ใช้งานอยู่ในขณะนี้
+          </div>
+        ) : (
+          <div className="grid gap-9 sm:grid-cols-2 xl:grid-cols-3">
+            {promotionCards.map((promotion) => (
+              <article
+                key={promotion.PromotionID}
+                className="overflow-hidden rounded-[28px] bg-[#273028] shadow-xl shadow-black/25 transition duration-300 hover:-translate-y-1 hover:bg-[#334235]"
+              >
+                <div className="relative h-[260px] overflow-hidden bg-black">
+                  <img
+                    src={promotion.image}
+                    alt={promotion.PromotionName}
+                    className="h-full w-full object-cover"
+                  />
+                  <span className="absolute right-4 top-4 rounded-full bg-[#f1cf44] px-4 py-1.5 text-[11px] font-black uppercase tracking-wide text-[#06160a]">
+                    {promotion.badge}
+                  </span>
+                </div>
 
-              <div className="min-h-[190px] px-7 py-6">
-                <h3 className="text-[21px] font-black leading-tight text-white">
-                  {promotion.title}
-                </h3>
-                <p className="mt-4 line-clamp-4 text-[15px] font-semibold leading-7 text-[#d4e9d2]">
-                  {promotion.description}
-                </p>
-              </div>
-            </article>
-          ))}
-        </div>
+                <div className="min-h-[190px] px-7 py-6">
+                  <h3 className="text-[21px] font-black leading-tight text-white">
+                    {promotion.PromotionName}
+                  </h3>
+                  <p className="mt-4 line-clamp-4 text-[15px] font-semibold leading-7 text-[#d4e9d2]">
+                    {promotion.description}
+                  </p>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );

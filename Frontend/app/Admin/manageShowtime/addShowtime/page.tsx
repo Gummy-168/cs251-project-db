@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, CalendarDays, Clapperboard, Save } from 'lucide-react';
 import { createAdminShowtime } from '@/services/api';
 
+const SHOWTIME_STORAGE_KEY = 'emerald_admin_showtimes';
+
 export default function AddShowtimePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -59,14 +61,83 @@ export default function AddShowtimePage() {
     setError(null);
 
     try {
-      await createAdminShowtime({
+      const createdShowtime = await createAdminShowtime({
         MovieKeyword: movieValue,
         Branch: branchValue,
         Theater: theaterValue,
         ShowDate: showDate,
         StartTime: showtimeInput,
-        Price: priceNumber,
       });
+
+      try {
+        const rawSchedule = window.localStorage.getItem(SHOWTIME_STORAGE_KEY);
+        const parsedSchedule = rawSchedule ? JSON.parse(rawSchedule) : [];
+
+        if (Array.isArray(parsedSchedule)) {
+          const normalizedBranch = branchValue.charAt(0).toUpperCase() + branchValue.slice(1).toLowerCase();
+          const theaterLabel = `Theater ${theaterValue}`;
+          const showtimeEntry = {
+            id: `db-showtime-${createdShowtime.ShowtimeID}`,
+            time: createdShowtime.StartTime.slice(0, 5),
+            price: priceNumber.toFixed(1),
+            showDate,
+          };
+
+          const branchIndex = parsedSchedule.findIndex(
+            (branch) =>
+              typeof branch?.branch === 'string' &&
+              branch.branch.toLowerCase() === normalizedBranch.toLowerCase()
+          );
+
+          if (branchIndex >= 0) {
+            const branch = parsedSchedule[branchIndex];
+            const theaterIndex = Array.isArray(branch.theaters)
+              ? branch.theaters.findIndex(
+                  (theater: { id?: string }) =>
+                    typeof theater?.id === 'string' &&
+                    theater.id.toLowerCase() === theaterLabel.toLowerCase()
+                )
+              : -1;
+
+            if (theaterIndex >= 0) {
+              branch.theaters[theaterIndex].showtimes = [
+                ...(branch.theaters[theaterIndex].showtimes ?? []),
+                showtimeEntry,
+              ];
+            } else {
+              branch.theaters = [
+                ...(branch.theaters ?? []),
+                {
+                  id: theaterLabel,
+                  type: 'STANDARD',
+                  showtimes: [showtimeEntry],
+                },
+              ];
+            }
+
+            parsedSchedule[branchIndex] = branch;
+          } else {
+            parsedSchedule.push({
+              branch: normalizedBranch,
+              theaters: [
+                {
+                  id: theaterLabel,
+                  type: 'STANDARD',
+                  showtimes: [showtimeEntry],
+                },
+              ],
+            });
+          }
+
+          window.localStorage.setItem(
+            SHOWTIME_STORAGE_KEY,
+            JSON.stringify(parsedSchedule)
+          );
+        }
+      } catch {
+        // Keep DB create success even if local cache update fails.
+      }
+
       router.push('/Admin/manageShowtime');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถบันทึกรอบฉายลงฐานข้อมูลได้');

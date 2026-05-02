@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import engine, SessionLocal
 from typing import List
-from datetime import date
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 import hashlib
 import schemas
 
@@ -112,6 +113,142 @@ def ensure_record_exists(
     )
     if not record:
         raise HTTPException(status_code=404, detail=detail)
+
+
+def resolve_movie_id(db: Session, payload: schemas.AdminShowtimeCreate) -> tuple[int, int]:
+    if payload.MID is not None:
+        movie = fetch_one(
+            db,
+            """
+            SELECT MID, Duration
+            FROM `Movie`
+            WHERE MID = :movie_id
+            """,
+            {"movie_id": payload.MID},
+        )
+
+        if not movie:
+            raise HTTPException(status_code=404, detail="Movie not found")
+
+        return int(movie["MID"]), int(movie["Duration"])
+
+    keyword = (payload.MovieKeyword or "").strip()
+
+    movie = None
+    if keyword.isdigit():
+        movie = fetch_one(
+            db,
+            """
+            SELECT MID, Duration
+            FROM `Movie`
+            WHERE MID = :movie_id
+            """,
+            {"movie_id": int(keyword)},
+        )
+
+    if not movie:
+        movie = fetch_one(
+            db,
+            """
+            SELECT MID, Duration
+            FROM `Movie`
+            WHERE LOWER(MName) = LOWER(:keyword)
+            ORDER BY MID DESC
+            LIMIT 1
+            """,
+            {"keyword": keyword},
+        )
+
+    if not movie:
+        movie = fetch_one(
+            db,
+            """
+            SELECT MID, Duration
+            FROM `Movie`
+            WHERE LOWER(MName) LIKE LOWER(:keyword)
+            ORDER BY MID DESC
+            LIMIT 1
+            """,
+            {"keyword": f"%{keyword}%"},
+        )
+
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    return int(movie["MID"]), int(movie["Duration"])
+
+
+def parse_theater_number(theater_value: str) -> int:
+    digits_only = "".join(char for char in theater_value if char.isdigit())
+
+    if not digits_only:
+        raise HTTPException(status_code=400, detail="Theater must include a theater number")
+
+    return int(digits_only)
+
+
+def resolve_theater_id(db: Session, payload: schemas.AdminShowtimeCreate) -> int:
+    if payload.ThID is not None:
+        ensure_record_exists(db, "Theater", "ThID", payload.ThID, "Theater not found")
+        return payload.ThID
+
+    branch_name = (payload.Branch or "").strip()
+    theater_number = parse_theater_number(payload.Theater or "")
+
+    theater = fetch_one(
+        db,
+        """
+        SELECT t.ThID
+        FROM `Theater` t
+        JOIN `Branch` b ON t.BID = b.BID
+        WHERE LOWER(b.BName) = LOWER(:branch_name)
+          AND t.ThNumber = :theater_number
+        LIMIT 1
+        """,
+        {
+            "branch_name": branch_name,
+            "theater_number": theater_number,
+        },
+    )
+
+    if not theater:
+        raise HTTPException(status_code=404, detail="Theater not found for the selected branch")
+
+    return int(theater["ThID"])
+
+
+def compute_end_time(start_time, duration_minutes: int):
+    start_datetime = datetime.combine(date.today(), start_time)
+    return (start_datetime + timedelta(minutes=duration_minutes)).time()
+
+
+def fetch_promotion_by_id(db: Session, promotion_id: int):
+    return fetch_one(
+        db,
+        """
+        SELECT PromotionID, PromotionName, DiscountType, DiscountValue, StartDate, EndDate, AID
+        FROM `Promotion`
+        WHERE PromotionID = :promotion_id
+        """,
+        {"promotion_id": promotion_id},
+    )
+
+
+def calculate_promotion_discount(total_price: Decimal, promotion: dict | None) -> tuple[Decimal, Decimal]:
+    if not promotion:
+        return Decimal("0.00"), total_price
+
+    discount_value = Decimal(promotion["DiscountValue"])
+    if promotion["DiscountType"] == "Percentage":
+        discount_amount = (total_price * discount_value) / Decimal("100")
+    else:
+        discount_amount = discount_value
+
+    if discount_amount > total_price:
+        discount_amount = total_price
+
+    final_price = total_price - discount_amount
+    return discount_amount.quantize(Decimal("0.01")), final_price.quantize(Decimal("0.01"))
 
 
 def seed_initial_data() -> None:
@@ -483,12 +620,21 @@ def delete_movie(movie_id: int, db: Session = Depends(get_db)):
 # Admin Endpoints - Showtime
 
 @app.post("/api/admin/showtimes", response_model=schemas.ShowtimeResponse, tags=["Admin - Showtime"], status_code=status.HTTP_201_CREATED)
-def create_showtime(showtime: schemas.ShowtimeCreate, db: Session = Depends(get_db)):
+def create_showtime(showtime: schemas.AdminShowtimeCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Showtime
     """
-    ensure_record_exists(db, "Theater", "ThID", showtime.ThID, "Theater not found")
-    ensure_record_exists(db, "Movie", "MID", showtime.MID, "Movie not found")
+    movie_id, duration_minutes = resolve_movie_id(db, showtime)
+    theater_id = resolve_theater_id(db, showtime)
+    end_time = showtime.EndTime or compute_end_time(showtime.StartTime, duration_minutes)
+
+    payload = {
+        "ShowDate": showtime.ShowDate,
+        "StartTime": showtime.StartTime,
+        "EndTime": end_time,
+        "ThID": theater_id,
+        "MID": movie_id,
+    }
 
     result = db.execute(
         text(
@@ -497,7 +643,7 @@ def create_showtime(showtime: schemas.ShowtimeCreate, db: Session = Depends(get_
             VALUES (:ShowDate, :StartTime, :EndTime, :ThID, :MID)
             """
         ),
-        showtime.model_dump(),
+        payload,
     )
     db.commit()
 
@@ -764,6 +910,23 @@ def delete_seat(seat_id: int, db: Session = Depends(get_db)):
 
 # Admin Endpoints - Promotion
 
+@app.get("/api/admin/promotions", response_model=List[schemas.PromotionResponse], tags=["Admin - Promotion"])
+def get_admin_promotions(db: Session = Depends(get_db)):
+    """
+    Admin Function: Get all promotions
+    """
+    promotions = db.execute(
+        text(
+            """
+            SELECT PromotionID, PromotionName, DiscountType, DiscountValue, StartDate, EndDate, AID
+            FROM `Promotion`
+            ORDER BY StartDate DESC, PromotionID DESC
+            """
+        )
+    ).mappings().all()
+
+    return promotions
+
 @app.post("/api/admin/promotions", response_model=schemas.PromotionResponse, tags=["Admin - Promotion"], status_code=status.HTTP_201_CREATED)
 def create_promotion(promotion: schemas.PromotionCreate, db: Session = Depends(get_db)):
     """
@@ -801,21 +964,18 @@ def update_promotion(promotion_id: int, promotion: schemas.PromotionUpdate, db: 
     """
     Admin Function: Edit Promotion
     """
-    existing_promotion = fetch_one(
-        db,
-        """
-        SELECT PromotionID, PromotionName, DiscountType, DiscountValue, StartDate, EndDate, AID
-        FROM `Promotion`
-        WHERE PromotionID = :promotion_id
-        """,
-        {"promotion_id": promotion_id},
-    )
+    existing_promotion = fetch_promotion_by_id(db, promotion_id)
     if not existing_promotion:
         raise HTTPException(status_code=404, detail="Promotion not found")
 
     update_data = promotion.model_dump(exclude_unset=True)
     if not update_data:
         return dict(existing_promotion)
+
+    next_start_date = update_data.get("StartDate", existing_promotion["StartDate"])
+    next_end_date = update_data.get("EndDate", existing_promotion["EndDate"])
+    if next_end_date < next_start_date:
+        raise HTTPException(status_code=400, detail="EndDate must be greater than or equal to StartDate")
 
     set_clause = ", ".join(f"{column} = :{column}" for column in update_data.keys())
     db.execute(
@@ -824,15 +984,7 @@ def update_promotion(promotion_id: int, promotion: schemas.PromotionUpdate, db: 
     )
     db.commit()
 
-    updated_promotion = fetch_one(
-        db,
-        """
-        SELECT PromotionID, PromotionName, DiscountType, DiscountValue, StartDate, EndDate, AID
-        FROM `Promotion`
-        WHERE PromotionID = :promotion_id
-        """,
-        {"promotion_id": promotion_id},
-    )
+    updated_promotion = fetch_promotion_by_id(db, promotion_id)
     return dict(updated_promotion)
 
 @app.delete("/api/admin/promotions/{promotion_id}", tags=["Admin - Promotion"], status_code=status.HTTP_204_NO_CONTENT)
@@ -1211,7 +1363,19 @@ def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)
         )
 
     seat_records = []
-    total_price = sum(seat["Price"] for seat in normalized_seats)
+    base_total_price = Decimal(str(sum(seat["Price"] for seat in normalized_seats)))
+    selected_promotion = None
+
+    if booking.PromotionID is not None:
+        selected_promotion = fetch_promotion_by_id(db, booking.PromotionID)
+        if not selected_promotion:
+            raise HTTPException(status_code=404, detail="Promotion not found")
+
+        today = date.today()
+        if selected_promotion["StartDate"] > today or selected_promotion["EndDate"] < today:
+            raise HTTPException(status_code=409, detail="Promotion is not active")
+
+    _, total_price = calculate_promotion_discount(base_total_price, selected_promotion)
 
     try:
         for seat in normalized_seats:
@@ -1312,7 +1476,7 @@ def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)
             text(
                 """
                 INSERT INTO Booking (BookingStatus, BookingDate, TotalPrice, UID, ShowtimeID, PromotionID)
-                VALUES ('Confirmed', :booking_date, :total_price, :uid, :showtime_id, NULL)
+                VALUES ('Confirmed', :booking_date, :total_price, :uid, :showtime_id, :promotion_id)
                 """
             ),
             {
@@ -1320,6 +1484,7 @@ def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)
                 "total_price": total_price,
                 "uid": booking.UID,
                 "showtime_id": booking.ShowtimeID,
+                "promotion_id": booking.PromotionID,
             },
         )
 
@@ -1747,24 +1912,104 @@ def delete_review(review_id: int, db: Session = Depends(get_db)):
 
 # promotion endpoints
 
-@app.get("/api/promotions/{promotion_id}", response_model=List[schemas.PromotionResponse], tags=["User - Promotion"])
-def get_promotions(promotion_id: int, db: Session = Depends(get_db)):
+@app.get("/api/promotions", response_model=List[schemas.PromotionResponse], tags=["User - Promotion"])
+def get_active_promotions(db: Session = Depends(get_db)):
     """
-    User Function: Get Promotions
-    TODO: Database implement (SELECT * FROM Promotion)
+    User Function: Get active promotions that have not expired
     """
-    # MOCK DATA: Replace with real database query output
-    return [
-        {
-            "PromotionID": promotion_id,
-            "PromotionName": "Summer Sale",
-            "DiscountType": "Percentage",
-            "DiscountValue": 10.00,
-            "StartDate": "2026-06-01",
-            "EndDate": "2026-08-31",
-            "AID": 1
+    promotions = db.execute(
+        text(
+            """
+            SELECT PromotionID, PromotionName, DiscountType, DiscountValue, StartDate, EndDate, AID
+            FROM `Promotion`
+            WHERE StartDate <= CURRENT_DATE()
+              AND EndDate >= CURRENT_DATE()
+            ORDER BY EndDate ASC, PromotionID DESC
+            """
+        )
+    ).mappings().all()
+
+    return promotions
+
+
+@app.post("/api/promotions/validate", response_model=schemas.PromotionValidateResponse, tags=["User - Promotion"])
+def validate_promotion(payload: schemas.PromotionValidateRequest, db: Session = Depends(get_db)):
+    """
+    User Function: Validate promo code and calculate discount
+    """
+    promo_code = payload.PromoCode.strip()
+
+    if not promo_code:
+        raise HTTPException(status_code=400, detail="PromoCode is required")
+
+    promotion = fetch_one(
+        db,
+        """
+        SELECT PromotionID, PromotionName, DiscountType, DiscountValue, StartDate, EndDate, AID
+        FROM `Promotion`
+        WHERE LOWER(PromotionName) = LOWER(:promo_code)
+        LIMIT 1
+        """,
+        {"promo_code": promo_code},
+    )
+
+    if not promotion:
+        return {
+            "IsValid": False,
+            "DiscountValue": Decimal("0.00"),
+            "DiscountAmount": Decimal("0.00"),
+            "FinalPrice": payload.TotalPrice,
+            "Message": "Promo code not found",
         }
-    ]
+
+    today = date.today()
+    if promotion["StartDate"] > today:
+        return {
+            "IsValid": False,
+            "PromotionID": promotion["PromotionID"],
+            "PromotionName": promotion["PromotionName"],
+            "DiscountType": promotion["DiscountType"],
+            "DiscountValue": promotion["DiscountValue"],
+            "DiscountAmount": Decimal("0.00"),
+            "FinalPrice": payload.TotalPrice,
+            "Message": "Promotion is not active yet",
+        }
+
+    if promotion["EndDate"] < today:
+        return {
+            "IsValid": False,
+            "PromotionID": promotion["PromotionID"],
+            "PromotionName": promotion["PromotionName"],
+            "DiscountType": promotion["DiscountType"],
+            "DiscountValue": promotion["DiscountValue"],
+            "DiscountAmount": Decimal("0.00"),
+            "FinalPrice": payload.TotalPrice,
+            "Message": "Promotion has expired",
+        }
+
+    total_price = Decimal(payload.TotalPrice)
+    discount_value = Decimal(promotion["DiscountValue"])
+
+    if promotion["DiscountType"] == "Percentage":
+        discount_amount = (total_price * discount_value) / Decimal("100")
+    else:
+        discount_amount = discount_value
+
+    if discount_amount > total_price:
+        discount_amount = total_price
+
+    final_price = total_price - discount_amount
+
+    return {
+        "IsValid": True,
+        "PromotionID": promotion["PromotionID"],
+        "PromotionName": promotion["PromotionName"],
+        "DiscountType": promotion["DiscountType"],
+        "DiscountValue": discount_value,
+        "DiscountAmount": discount_amount.quantize(Decimal("0.01")),
+        "FinalPrice": final_price.quantize(Decimal("0.01")),
+        "Message": "Promotion is valid",
+    }
 
 @app.post("/api/promotions/apply", response_model=schemas.PromotionResponse, tags=["User - Promotion"])
 def apply_promotion(promotion_id: int, booking_id: int, db: Session = Depends(get_db)):

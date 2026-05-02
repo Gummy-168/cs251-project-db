@@ -26,6 +26,13 @@ import type {
   UserSigninResponse,
   UserUpdatePayload,
 } from "@/types/user";
+import type {
+  PromotionCreatePayload,
+  PromotionRecord,
+  PromotionUpdatePayload,
+  PromotionValidatePayload,
+  PromotionValidateResult,
+} from "@/types/promotion";
 import type { BackendSeat, SeatLayoutSeat } from "@/types/seat";
 
 const API_BASE_URL =
@@ -337,6 +344,50 @@ export async function createAdminShowtime(
   payload: AdminShowtimeCreatePayload
 ): Promise<BackendAdminShowtimeRecord> {
   return apiFetch<BackendAdminShowtimeRecord>("/api/admin/showtimes", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getActivePromotions(): Promise<PromotionRecord[]> {
+  return apiFetch<PromotionRecord[]>("/api/promotions");
+}
+
+export async function getAdminPromotions(): Promise<PromotionRecord[]> {
+  return apiFetch<PromotionRecord[]>("/api/admin/promotions");
+}
+
+export async function createAdminPromotion(
+  payload: PromotionCreatePayload
+): Promise<PromotionRecord> {
+  return apiFetch<PromotionRecord>("/api/admin/promotions", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminPromotion(
+  promotionId: string | number,
+  payload: PromotionUpdatePayload
+): Promise<PromotionRecord> {
+  return apiFetch<PromotionRecord>(`/api/admin/promotions/${promotionId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteAdminPromotion(
+  promotionId: string | number
+): Promise<void> {
+  return apiFetch<void>(`/api/admin/promotions/${promotionId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function validatePromoCode(
+  payload: PromotionValidatePayload
+): Promise<PromotionValidateResult> {
+  return apiFetch<PromotionValidateResult>("/api/promotions/validate", {
     method: "POST",
     body: JSON.stringify(payload),
   });

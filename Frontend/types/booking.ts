@@ -59,6 +59,7 @@ export interface BookingCreatePayload {
   ShowtimeID: number;
   UID: number;
   Seats: BookingSeatInput[];
+  PromotionID?: number | null;
 }
 
 export interface BookingRecord {
@@ -166,17 +167,19 @@ export interface ReviewRecord {
 export interface AdminShowtimeCreatePayload {
   MID?: number;
   MovieKeyword?: string;
+  ThID?: number;
   Branch: string;
   Theater: string;
   ShowDate: string;
   StartTime: string;
-  Price: number;
+  EndTime?: string;
 }
 
 export interface BackendAdminShowtimeRecord {
   ShowtimeID: number;
+  ThID: number;
   MID: number;
   ShowDate: string;
   StartTime: string;
-  Price?: number | string;
+  EndTime: string;
 }
