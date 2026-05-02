@@ -33,6 +33,11 @@ import type {
   PromotionValidatePayload,
   PromotionValidateResult,
 } from "@/types/promotion";
+import type {
+  PerformanceLogPage,
+  PerformanceLogParams,
+  TrendingMovieReport,
+} from "@/types/report";
 import type { BackendSeat, SeatLayoutSeat } from "@/types/seat";
 
 const API_BASE_URL =
@@ -391,6 +396,41 @@ export async function validatePromoCode(
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export async function getTrendingMovie(): Promise<TrendingMovieReport> {
+  return apiFetch<TrendingMovieReport>("/api/admin/reports/trending");
+}
+
+export async function getPerformanceLogs(
+  params: PerformanceLogParams
+): Promise<PerformanceLogPage> {
+  const queryParams = new URLSearchParams();
+
+  if (params.search?.trim()) {
+    queryParams.set("search", params.search.trim());
+  }
+
+  if (params.start_date) {
+    queryParams.set("start_date", params.start_date);
+  }
+
+  if (params.end_date) {
+    queryParams.set("end_date", params.end_date);
+  }
+
+  if (params.page) {
+    queryParams.set("page", String(params.page));
+  }
+
+  if (params.limit) {
+    queryParams.set("limit", String(params.limit));
+  }
+
+  const queryString = queryParams.toString();
+  return apiFetch<PerformanceLogPage>(
+    `/api/admin/reports/performance${queryString ? `?${queryString}` : ""}`
+  );
 }
 
 // ==========================================

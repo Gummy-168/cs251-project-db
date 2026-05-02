@@ -29,3 +29,8 @@ from .promotion import (
     PromotionValidateResponse,
 )
 from .user import UserCreate, UserLogin, UserUpdate, UserResponse, UserSigninResponse
+from .report import (
+    TrendingMovieReportResponse,
+    PerformanceLogResponse,
+    PerformanceLogPageResponse,
+)

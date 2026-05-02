@@ -1021,6 +1021,128 @@ def get_all_payments(payment_id: int, db: Session = Depends(get_db)):
 
     return [dict(payment)]
 
+
+@app.get("/api/admin/reports/trending", response_model=schemas.TrendingMovieReportResponse, tags=["Admin - Report"])
+def get_trending_movie_report(db: Session = Depends(get_db)):
+    """
+    Admin Function: Get the movie with the highest ticket sales
+    """
+    trending_movie = fetch_one(
+        db,
+        """
+        SELECT
+            m.MID,
+            m.MName,
+            m.Description
+        FROM `Movie` m
+        JOIN `Showtime` s ON m.MID = s.MID
+        JOIN `Booking` b ON s.ShowtimeID = b.ShowtimeID
+        JOIN `Ticket` t ON b.BookingID = t.BookingID
+        GROUP BY m.MID, m.MName, m.Description
+        ORDER BY COUNT(t.TicketID) DESC, m.MID DESC
+        LIMIT 1
+        """,
+    )
+
+    if not trending_movie:
+        raise HTTPException(status_code=404, detail="No report data found")
+
+    return dict(trending_movie)
+
+
+@app.get("/api/admin/reports/performance", response_model=schemas.PerformanceLogPageResponse, tags=["Admin - Report"])
+def get_performance_report(
+    search: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    page: int = 1,
+    limit: int = 10,
+    db: Session = Depends(get_db),
+):
+    """
+    Admin Function: Get paginated performance logs grouped by movie and show date
+    """
+    if page < 1:
+        raise HTTPException(status_code=400, detail="page must be greater than 0")
+
+    if limit < 1:
+        raise HTTPException(status_code=400, detail="limit must be greater than 0")
+
+    if start_date and end_date and end_date < start_date:
+        raise HTTPException(status_code=400, detail="end_date must be greater than or equal to start_date")
+
+    filters = []
+    params: dict[str, object] = {}
+
+    if search and search.strip():
+        filters.append("LOWER(m.MName) LIKE LOWER(:search)")
+        params["search"] = f"%{search.strip()}%"
+
+    if start_date:
+        filters.append("s.ShowDate >= :start_date")
+        params["start_date"] = start_date
+
+    if end_date:
+        filters.append("s.ShowDate <= :end_date")
+        params["end_date"] = end_date
+
+    where_clause = ""
+    if filters:
+        where_clause = "WHERE " + " AND ".join(filters)
+
+    total_row = fetch_one(
+        db,
+        f"""
+        SELECT COUNT(*) AS total
+        FROM (
+            SELECT m.MID, s.ShowDate
+            FROM `Movie` m
+            JOIN `Showtime` s ON m.MID = s.MID
+            JOIN `Booking` b ON s.ShowtimeID = b.ShowtimeID
+            JOIN `Ticket` t ON b.BookingID = t.BookingID
+            {where_clause}
+            GROUP BY m.MID, s.ShowDate
+        ) grouped_rows
+        """,
+        params,
+    )
+
+    total = int(total_row["total"]) if total_row else 0
+    offset = (page - 1) * limit
+
+    items = db.execute(
+        text(
+            f"""
+            SELECT
+                m.MID,
+                m.MName,
+                s.ShowDate,
+                COUNT(t.TicketID) AS TCOUNT,
+                COALESCE(SUM(t.Price), 0) AS INCOME
+            FROM `Movie` m
+            JOIN `Showtime` s ON m.MID = s.MID
+            JOIN `Booking` b ON s.ShowtimeID = b.ShowtimeID
+            JOIN `Ticket` t ON b.BookingID = t.BookingID
+            {where_clause}
+            GROUP BY m.MID, m.MName, s.ShowDate
+            ORDER BY s.ShowDate DESC, m.MID DESC
+            LIMIT :limit OFFSET :offset
+            """
+        ),
+        {
+            **params,
+            "limit": limit,
+            "offset": offset,
+        },
+    ).mappings().all()
+
+    return {
+        "items": [dict(item) for item in items],
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
+
 # user endpoints
 
 @app.get("/api/movies", response_model=List[schemas.MovieResponse], tags=["User - Cinema"])
