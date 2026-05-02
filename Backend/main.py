@@ -5,7 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from database import engine, SessionLocal
 from typing import List
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, time
 from decimal import Decimal
 import hashlib
 import schemas
@@ -222,6 +222,22 @@ def resolve_theater_id(db: Session, payload: schemas.AdminShowtimeCreate) -> int
 def compute_end_time(start_time, duration_minutes: int):
     start_datetime = datetime.combine(date.today(), start_time)
     return (start_datetime + timedelta(minutes=duration_minutes)).time()
+
+
+def normalize_db_time(value):
+    if isinstance(value, timedelta):
+        total_seconds = int(value.total_seconds()) % (24 * 3600)
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        return time(hour=hours, minute=minutes, second=seconds)
+    return value
+
+
+def normalize_showtime_payload(row: dict) -> dict:
+    row["StartTime"] = normalize_db_time(row.get("StartTime"))
+    row["EndTime"] = normalize_db_time(row.get("EndTime"))
+    return row
 
 
 def fetch_promotion_by_id(db: Session, promotion_id: int):
@@ -790,36 +806,9 @@ def create_showtime(showtime: schemas.AdminShowtimeCreate, db: Session = Depends
     """
     Admin Function: Add Showtime
     """
-<<<<<<< HEAD
-    movie_id, duration_minutes = resolve_movie_id(db, showtime)
-    theater_id = resolve_theater_id(db, showtime)
-    end_time = showtime.EndTime or compute_end_time(showtime.StartTime, duration_minutes)
-
-    payload = {
-        "ShowDate": showtime.ShowDate,
-        "StartTime": showtime.StartTime,
-        "EndTime": end_time,
-        "ThID": theater_id,
-        "MID": movie_id,
-    }
-
-    result = db.execute(
-        text(
-            """
-            INSERT INTO `Showtime` (ShowDate, StartTime, EndTime, ThID, MID)
-            VALUES (:ShowDate, :StartTime, :EndTime, :ThID, :MID)
-            """
-        ),
-        payload,
-=======
-    computed_end_time = resolve_end_time(
-        db=db,
-        mid=showtime.MID,
-        show_date=showtime.ShowDate,
-        start_time=showtime.StartTime,
-        end_time=showtime.EndTime,
->>>>>>> 56b8797 (update showtime backend)
-    )
+    resolved_mid, movie_duration = resolve_movie_id(db, showtime)
+    resolved_thid = resolve_theater_id(db, showtime)
+    computed_end_time = showtime.EndTime or compute_end_time(showtime.StartTime, movie_duration)
 
     if computed_end_time <= showtime.StartTime:
         raise HTTPException(
@@ -828,11 +817,13 @@ def create_showtime(showtime: schemas.AdminShowtimeCreate, db: Session = Depends
         )
 
     try:
-        ensure_record_exists(db, "Theater", "ThID", showtime.ThID, "Theater not found")
-        ensure_record_exists(db, "Movie", "MID", showtime.MID, "Movie not found")
-
-        payload = showtime.model_dump()
-        payload["EndTime"] = computed_end_time
+        payload = {
+            "ShowDate": showtime.ShowDate,
+            "StartTime": showtime.StartTime,
+            "EndTime": computed_end_time,
+            "ThID": resolved_thid,
+            "MID": resolved_mid,
+        }
 
         result = db.execute(
             text(
@@ -871,13 +862,15 @@ def update_showtime(showtime_id: int, showtime: schemas.ShowtimeCreate, db: Sess
     ensure_record_exists(db, "Theater", "ThID", showtime.ThID, "Theater not found")
     ensure_record_exists(db, "Movie", "MID", showtime.MID, "Movie not found")
 
-    computed_end_time = resolve_end_time(
-        db=db,
-        mid=showtime.MID,
-        show_date=showtime.ShowDate,
-        start_time=showtime.StartTime,
-        end_time=showtime.EndTime,
+    movie_row = fetch_one(
+        db,
+        "SELECT Duration FROM `Movie` WHERE MID = :mid",
+        {"mid": showtime.MID},
     )
+    if not movie_row:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    computed_end_time = showtime.EndTime or compute_end_time(showtime.StartTime, int(movie_row["Duration"]))
     if computed_end_time <= showtime.StartTime:
         raise HTTPException(
             status_code=422,
