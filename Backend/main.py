@@ -5,12 +5,8 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from database import engine, SessionLocal
 from typing import List
-<<<<<<< HEAD
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-=======
-from datetime import date, datetime, timedelta, time
->>>>>>> 56b8797 (update showtime backend)
 import hashlib
 import schemas
 
@@ -121,7 +117,6 @@ def ensure_record_exists(
         raise HTTPException(status_code=404, detail=detail)
 
 
-<<<<<<< HEAD
 def resolve_movie_id(db: Session, payload: schemas.AdminShowtimeCreate) -> tuple[int, int]:
     if payload.MID is not None:
         movie = fetch_one(
@@ -256,46 +251,6 @@ def calculate_promotion_discount(total_price: Decimal, promotion: dict | None) -
 
     final_price = total_price - discount_amount
     return discount_amount.quantize(Decimal("0.01")), final_price.quantize(Decimal("0.01"))
-=======
-def resolve_end_time(
-    db: Session,
-    mid: int,
-    show_date: date,
-    start_time,
-    end_time,
-):
-    if end_time is not None:
-        return end_time
-
-    movie_row = fetch_one(
-        db,
-        "SELECT Duration FROM `Movie` WHERE MID = :mid",
-        {"mid": mid},
-    )
-    if not movie_row:
-        raise HTTPException(status_code=404, detail="Movie not found")
-
-    duration_minutes = int(movie_row["Duration"])
-    start_dt = datetime.combine(show_date, start_time)
-    computed_end = (start_dt + timedelta(minutes=duration_minutes)).time()
-    return computed_end
-
-
-def normalize_db_time(value):
-    if isinstance(value, timedelta):
-        total_seconds = int(value.total_seconds()) % (24 * 3600)
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        seconds = total_seconds % 60
-        return time(hour=hours, minute=minutes, second=seconds)
-    return value
-
-
-def normalize_showtime_payload(row: dict) -> dict:
-    row["StartTime"] = normalize_db_time(row.get("StartTime"))
-    row["EndTime"] = normalize_db_time(row.get("EndTime"))
-    return row
->>>>>>> 56b8797 (update showtime backend)
 
 
 def seed_initial_data() -> None:
@@ -2175,7 +2130,7 @@ def delete_review(review_id: int, db: Session = Depends(get_db)):
     return None
 
 
-# promotion endpoints
+# promotion endpoints for user
 
 @app.get("/api/promotions", response_model=List[schemas.PromotionResponse], tags=["User - Promotion"])
 def get_active_promotions(db: Session = Depends(get_db)):
