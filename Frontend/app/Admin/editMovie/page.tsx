@@ -1,10 +1,18 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Camera, Plus, Save, Search, Star, Trash2 } from 'lucide-react';
+import type { MovieCard } from '@/types/movie';
+
+import {
+  createAdminMovie,
+  deleteAdminMovie,
+  getMovies,
+  updateAdminMovie,
+} from '@/services/api';
 
 type Movie = {
-  id: string;
+  id: number;
   title: string;
   rating: string;
   synopsis: string;
@@ -12,88 +20,69 @@ type Movie = {
   releaseDate: string;
   genre: string;
   duration: string;
+  ageRating: string;
+  actor: string;
+  director: string;
 };
 
-const initialMovies: Movie[] = [
-  {
-    id: '0890',
-    title: 'Neon Vanguard',
-    rating: '8.5',
-    synopsis:
-      'In a future where memory is a luxury, one detective hunts for the architect behind a citywide blackout of truth.',
-    poster:
-      'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=900&q=80',
-    releaseDate: '2026-10-19',
-    genre: 'Sci-Fi',
-    duration: '2h 15m',
-  },
-  {
-    id: '1042',
-    title: 'The Silent Echo',
-    rating: '8.2',
-    synopsis:
-      'Deep in the woods, silence is not an absence but a warning that something old has started listening again.',
-    poster:
-      'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=80',
-    releaseDate: '2026-11-02',
-    genre: 'Thriller',
-    duration: '1h 58m',
-  },
-  {
-    id: '0955',
-    title: 'Last Reel',
-    rating: '7.9',
-    synopsis:
-      'A retired projectionist finds a lost film canister that records the secrets his town buried decades ago.',
-    poster:
-      'https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=900&q=80',
-    releaseDate: '2026-12-12',
-    genre: 'Mystery',
-    duration: '1h 47m',
-  },
-  {
-    id: '1329',
-    title: 'Velocity Zero',
-    rating: '8.7',
-    synopsis:
-      'When physics breaks down, the only thing that matters is how fast fear spreads through a stranded convoy.',
-    poster:
-      'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?auto=format&fit=crop&w=900&q=80',
-    releaseDate: '2026-08-08',
-    genre: 'Action',
-    duration: '2h 03m',
-  },
-  {
-    id: '8723',
-    title: 'Emerald Shadow',
-    rating: '8.0',
-    synopsis:
-      'A private eye takes a case that leads him into the dark underbelly of the city and a name no one says twice.',
-    poster:
-      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80',
-    releaseDate: '2026-09-14',
-    genre: 'Neo-Noir',
-    duration: '2h 09m',
-  },
-];
+const ADMIN_ID = 1;
 
 const emptyMovie: Movie = {
-  id: '',
+  id: 0,
   title: '',
-  rating: '',
+  rating: '0.0',
   synopsis: '',
   poster: '',
   releaseDate: '',
   genre: '',
   duration: '',
+  ageRating: '',
+  actor: '',
+  director: '',
 };
 
+function mapToEditableMovie(movie: MovieCard): Movie {
+  return {
+    id: movie.id,
+    title: movie.title,
+    rating: movie.scoreRating !== null ? String(movie.scoreRating) : '0.0',
+    synopsis: movie.description ?? '',
+    poster: movie.image,
+    releaseDate: movie.releaseDate,
+    genre: movie.genre,
+    duration: String(movie.duration),
+    ageRating: movie.ageRating,
+    actor: '',
+    director: '',
+  };
+}
+
 export default function EditMoviePage() {
-  const [movies, setMovies] = useState(initialMovies);
+  const [movies, setMovies] = useState<Movie[]>([]);
   const [query, setQuery] = useState('');
-  const [draft, setDraft] = useState<Movie>(initialMovies[0]);
+  const [draft, setDraft] = useState<Movie>(emptyMovie);
   const [mode, setMode] = useState<'list' | 'edit' | 'add'>('list');
   const [savedMessage, setSavedMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const loadMovies = async () => {
+    try {
+      setLoading(true);
+      setErrorMessage('');
+      const data = await getMovies();
+      setMovies(data.map(mapToEditableMovie));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'โหลดข้อมูลภาพยนตร์ไม่สำเร็จ');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMovies();
+  }, []);
 
   const filteredMovies = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -103,7 +92,7 @@ export default function EditMoviePage() {
     }
 
     return movies.filter((movie) =>
-      [movie.title, movie.id, movie.genre, movie.synopsis].some((value) =>
+      [movie.title, String(movie.id), movie.genre, movie.synopsis].some((value) =>
         value.toLowerCase().includes(normalizedQuery),
       ),
     );
@@ -113,38 +102,120 @@ export default function EditMoviePage() {
     setDraft(movie);
     setMode('edit');
     setSavedMessage('');
+    setErrorMessage('');
   };
 
   const openAddMovie = () => {
     setDraft({
       ...emptyMovie,
-      id: `ID-${String(8900 + movies.length).padStart(4, '0')}`,
-      rating: '8.5',
+      rating: '8.0',
+      ageRating: 'PG-13',
     });
     setMode('add');
     setSavedMessage('');
+    setErrorMessage('');
   };
 
   const goBackToList = () => {
     setMode('list');
     setSavedMessage('');
+    setErrorMessage('');
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (mode === 'add') {
-      setMovies((currentMovies) => [draft, ...currentMovies]);
-      setSavedMessage(`Added "${draft.title}" to movie list.`);
-      setMode('list');
+  const handleDeleteMovie = async (movieId: number) => {
+    const isConfirmed = window.confirm('ยืนยันการลบภาพยนตร์รายการนี้?');
+    if (!isConfirmed) {
       return;
     }
 
-    setMovies((currentMovies) =>
-      currentMovies.map((movie) => (movie.id === draft.id ? draft : movie)),
-    );
-    setSavedMessage(`Saved changes to "${draft.title}".`);
-    setMode('list');
+    try {
+      await deleteAdminMovie(movieId);
+      setMovies((currentMovies) => currentMovies.filter((movie) => movie.id !== movieId));
+      setSavedMessage(`ลบภาพยนตร์ ID ${movieId} เรียบร้อยแล้ว`);
+      setErrorMessage('');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'ลบภาพยนตร์ไม่สำเร็จ');
+    }
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const title = draft.title.trim();
+    const genre = draft.genre.trim();
+    const ageRating = draft.ageRating.trim();
+    const releaseDate = draft.releaseDate.trim();
+    const duration = Number(draft.duration);
+    const rating = Number(draft.rating);
+
+    if (!title || !genre || !ageRating || !releaseDate || !Number.isFinite(duration) || duration <= 0) {
+      setErrorMessage('กรุณากรอกข้อมูลที่จำเป็นให้ครบ (ชื่อเรื่อง, หมวดหมู่, อายุผู้ชม, วันฉาย, ความยาวนาที)');
+      return;
+    }
+
+    if (!Number.isFinite(rating) || rating < 0 || rating > 10) {
+      setErrorMessage('คะแนนต้องอยู่ระหว่าง 0 ถึง 10');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setErrorMessage('');
+
+      if (mode === 'add') {
+        await createAdminMovie({
+          MName: title,
+          Genre: genre,
+          Duration: Math.round(duration),
+          AgeRating: ageRating,
+          Description: draft.synopsis.trim() || null,
+          ReleaseDate: releaseDate,
+          Actor: draft.actor.trim() || null,
+          Director: draft.director.trim() || null,
+          ScoreRating: Number(rating.toFixed(1)),
+          AID: ADMIN_ID,
+        });
+        setSavedMessage(`เพิ่ม "${title}" เรียบร้อยแล้ว`);
+      } else {
+        const payload: {
+          MName: string;
+          Genre: string;
+          Duration: number;
+          AgeRating: string;
+          Description: string | null;
+          ReleaseDate: string;
+          ScoreRating: number;
+          Actor?: string | null;
+          Director?: string | null;
+        } = {
+          MName: title,
+          Genre: genre,
+          Duration: Math.round(duration),
+          AgeRating: ageRating,
+          Description: draft.synopsis.trim() || null,
+          ReleaseDate: releaseDate,
+          ScoreRating: Number(rating.toFixed(1)),
+        };
+
+        if (draft.actor.trim()) {
+          payload.Actor = draft.actor.trim();
+        }
+
+        if (draft.director.trim()) {
+          payload.Director = draft.director.trim();
+        }
+
+        await updateAdminMovie(draft.id, payload);
+        setSavedMessage(`บันทึกการแก้ไข "${title}" เรียบร้อยแล้ว`);
+      }
+
+      await loadMovies();
+      setMode('list');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'บันทึกข้อมูลไม่สำเร็จ');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const hasPoster = draft.poster.trim().length > 0;
@@ -183,6 +254,8 @@ export default function EditMoviePage() {
 
           <div className="p-6">
             {savedMessage ? <p className="mb-4 text-sm text-emerald-400">{savedMessage}</p> : null}
+            {errorMessage ? <p className="mb-4 text-sm text-rose-400">{errorMessage}</p> : null}
+            {loading ? <p className="mb-4 text-sm text-gray-400">กำลังโหลดข้อมูลภาพยนตร์...</p> : null}
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {filteredMovies.map((movie) => (
@@ -202,10 +275,16 @@ export default function EditMoviePage() {
                       <div>
                         <h2 className="text-sm font-semibold leading-4 text-white">{movie.title}</h2>
                       </div>
-                      <Trash2 className="mt-0.5 h-3.5 w-3.5 text-gray-500" />
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMovie(movie.id)}
+                        className="text-gray-500 transition hover:text-red-400"
+                      >
+                        <Trash2 className="mt-0.5 h-3.5 w-3.5" />
+                      </button>
                     </div>
 
-                    <p className="min-h-[72px] text-[11px] leading-4 text-gray-400">{movie.synopsis}</p>
+                    <p className="min-h-[72px] text-[11px] leading-4 text-gray-400">{movie.synopsis || '-'}</p>
 
                     <button
                       type="button"
@@ -227,7 +306,7 @@ export default function EditMoviePage() {
               <Plus className="h-7 w-7" />
             </button>
 
-            {filteredMovies.length === 0 ? (
+            {!loading && filteredMovies.length === 0 ? (
               <div className="mt-6 rounded-[12px] border border-dashed border-[#244129] bg-[#0d1510] px-6 py-10 text-center text-sm text-gray-500">
                 No movies match your search.
               </div>
@@ -261,6 +340,7 @@ export default function EditMoviePage() {
           <h2 className="mt-8 text-3xl font-medium text-white">
             {mode === 'add' ? 'เพิ่มภาพยนตร์ใหม่ (Add New Movie)' : 'แก้ไขข้อมูลภาพยนตร์ (Edit Movie)'}
           </h2>
+          {errorMessage ? <p className="mt-4 text-sm text-rose-400">{errorMessage}</p> : null}
         </div>
 
         <form onSubmit={handleSubmit} className="relative px-6 pb-24 pt-6">
@@ -310,9 +390,9 @@ export default function EditMoviePage() {
                     Movie ID
                   </span>
                   <input
-                    value={draft.id}
-                    onChange={(event) => setDraft((current) => ({ ...current, id: event.target.value }))}
-                    className="w-full rounded-[6px] border border-[#2b3d2e] bg-[#4a5e4a]/90 px-4 py-3 text-sm text-emerald-300 outline-none focus:border-emerald-500"
+                    value={draft.id === 0 ? 'Auto' : String(draft.id)}
+                    disabled
+                    className="w-full rounded-[6px] border border-[#2b3d2e] bg-[#4a5e4a]/70 px-4 py-3 text-sm text-emerald-300 outline-none"
                   />
                 </label>
 
@@ -360,17 +440,61 @@ export default function EditMoviePage() {
                 </label>
               </div>
 
-              <label className="block space-y-2">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-300">
-                  Duration
-                </span>
-                <input
-                  value={draft.duration}
-                  onChange={(event) => setDraft((current) => ({ ...current, duration: event.target.value }))}
-                  placeholder="e.g., 2h 15m"
-                  className="w-full rounded-[6px] border border-[#2b3d2e] bg-[#4a5e4a]/90 px-4 py-3 text-sm text-white outline-none placeholder:text-gray-300/50 focus:border-emerald-500"
-                />
-              </label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block space-y-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-300">
+                    Duration (minutes)
+                  </span>
+                  <input
+                    value={draft.duration}
+                    onChange={(event) => setDraft((current) => ({ ...current, duration: event.target.value }))}
+                    placeholder="e.g., 125"
+                    className="w-full rounded-[6px] border border-[#2b3d2e] bg-[#4a5e4a]/90 px-4 py-3 text-sm text-white outline-none placeholder:text-gray-300/50 focus:border-emerald-500"
+                  />
+                </label>
+
+                <label className="block space-y-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-300">
+                    Age Rating
+                  </span>
+                  <input
+                    value={draft.ageRating}
+                    onChange={(event) =>
+                      setDraft((current) => ({ ...current, ageRating: event.target.value }))
+                    }
+                    placeholder="PG-13"
+                    className="w-full rounded-[6px] border border-[#2b3d2e] bg-[#4a5e4a]/90 px-4 py-3 text-sm text-white outline-none placeholder:text-gray-300/50 focus:border-emerald-500"
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block space-y-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-300">
+                    Actors (comma separated)
+                  </span>
+                  <input
+                    value={draft.actor}
+                    onChange={(event) => setDraft((current) => ({ ...current, actor: event.target.value }))}
+                    placeholder="Actor A, Actor B"
+                    className="w-full rounded-[6px] border border-[#2b3d2e] bg-[#4a5e4a]/90 px-4 py-3 text-sm text-white outline-none placeholder:text-gray-300/50 focus:border-emerald-500"
+                  />
+                </label>
+
+                <label className="block space-y-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-300">
+                    Director
+                  </span>
+                  <input
+                    value={draft.director}
+                    onChange={(event) =>
+                      setDraft((current) => ({ ...current, director: event.target.value }))
+                    }
+                    placeholder="Director name"
+                    className="w-full rounded-[6px] border border-[#2b3d2e] bg-[#4a5e4a]/90 px-4 py-3 text-sm text-white outline-none placeholder:text-gray-300/50 focus:border-emerald-500"
+                  />
+                </label>
+              </div>
 
               <label className="block space-y-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-300">
@@ -402,10 +526,15 @@ export default function EditMoviePage() {
           <div className="absolute bottom-6 right-6">
             <button
               type="submit"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#58dc69] px-6 py-3 text-sm font-semibold text-[#061008] shadow-[0_0_20px_rgba(88,220,105,0.35)] transition hover:bg-[#74e482]"
+              disabled={submitting}
+              className={`inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold shadow-[0_0_20px_rgba(88,220,105,0.35)] transition ${
+                submitting
+                  ? 'cursor-not-allowed bg-[#4a5e4a] text-[#9eb39f]'
+                  : 'bg-[#58dc69] text-[#061008] hover:bg-[#74e482]'
+              }`}
             >
               <Save className="h-4 w-4" />
-              Save
+              {submitting ? 'Saving...' : 'Save'}
             </button>
           </div>
         </form>

@@ -1,4 +1,6 @@
 import type {
+  AdminMovieCreatePayload,
+  AdminMovieUpdatePayload,
   BackendMovie,
   MovieCard,
   MovieDetail,
@@ -155,6 +157,10 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(detail);
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json() as Promise<T>;
 }
 
@@ -177,6 +183,31 @@ export async function getShowtimesByMovieId(
     `/api/movies/${movieId}/showtimes`
   );
   return mapShowtimeGroups(groups);
+}
+
+export async function createAdminMovie(
+  payload: AdminMovieCreatePayload
+): Promise<BackendMovie> {
+  return apiFetch<BackendMovie>("/api/admin/movies", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminMovie(
+  movieId: string | number,
+  payload: AdminMovieUpdatePayload
+): Promise<BackendMovie> {
+  return apiFetch<BackendMovie>(`/api/admin/movies/${movieId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteAdminMovie(movieId: string | number): Promise<void> {
+  return apiFetch<void>(`/api/admin/movies/${movieId}`, {
+    method: "DELETE",
+  });
 }
 
 export async function registerUser(
