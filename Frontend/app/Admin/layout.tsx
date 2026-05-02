@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { LayoutGrid, Calendar, Clock, Film } from 'lucide-react';
 
 export default function AdminLayout({
@@ -11,6 +11,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname(); // Gets the current active URL
+  const router = useRouter();
 
   // Helper function: returns true if the current path matches the link
   const isActive = (path: string) => pathname === path;
@@ -53,7 +54,7 @@ export default function AdminLayout({
             </Link>
 
             <Link 
-              href="#" 
+              href="/Admin/manageShowtime" 
               className={`flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors ${
                 isActive('/Admin/manageShowtime') 
                   ? 'text-emerald-400 bg-[#1e3326] border-l-4 border-emerald-500' 
@@ -65,7 +66,7 @@ export default function AdminLayout({
             </Link>
 
             <Link 
-              href="#" 
+              href="/Admin/editMovie" 
               className={`flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors ${
                 isActive('/Admin/editMovie') 
                   ? 'text-emerald-400 bg-[#1e3326] border-l-4 border-emerald-500' 
@@ -80,7 +81,11 @@ export default function AdminLayout({
 
         {/* Log Out Button */}
         <div className="px-6">
-          <button className="w-full flex items-center justify-center gap-2 bg-[#2a3d31] hover:bg-[#344b3c] text-gray-300 py-2 rounded text-sm font-semibold transition-colors">
+          <button
+            type="button"
+            onClick={() => router.push('/login')}
+            className="w-full flex items-center justify-center gap-2 bg-[#2a3d31] hover:bg-[#344b3c] text-gray-300 py-2 rounded text-sm font-semibold transition-colors"
+          >
             LOG OUT
           </button>
         </div>
