@@ -8,6 +8,7 @@ import type {
 } from "@/types/movie";
 import type {
   AdminShowtimeCreatePayload,
+  BackendAdminShowtimeListRecord,
   BackendBookingReview,
   BackendAdminShowtimeRecord,
   BackendMovieShowtimeDateGroup,
@@ -349,6 +350,7 @@ export async function createAdminShowtime(
   });
 }
 
+<<<<<<< HEAD
 export async function getActivePromotions(): Promise<PromotionRecord[]> {
   return apiFetch<PromotionRecord[]>("/api/promotions");
 }
@@ -380,10 +382,32 @@ export async function deleteAdminPromotion(
   promotionId: string | number
 ): Promise<void> {
   return apiFetch<void>(`/api/admin/promotions/${promotionId}`, {
+=======
+export async function getAdminShowtimes(params?: {
+  showDate?: string;
+  movieName?: string;
+}): Promise<BackendAdminShowtimeListRecord[]> {
+  const query = new URLSearchParams();
+
+  if (params?.showDate) {
+    query.set("show_date", params.showDate);
+  }
+  if (params?.movieName) {
+    query.set("movie_name", params.movieName);
+  }
+
+  const path = query.size > 0 ? `/api/admin/showtimes?${query.toString()}` : "/api/admin/showtimes";
+  return apiFetch<BackendAdminShowtimeListRecord[]>(path);
+}
+
+export async function deleteAdminShowtime(showtimeId: number): Promise<void> {
+  return apiFetch<void>(`/api/admin/showtimes/${showtimeId}`, {
+>>>>>>> 3eb04d1 (Fix Show time)
     method: "DELETE",
   });
 }
 
+<<<<<<< HEAD
 export async function validatePromoCode(
   payload: PromotionValidatePayload
 ): Promise<PromotionValidateResult> {
@@ -393,6 +417,8 @@ export async function validatePromoCode(
   });
 }
 
+=======
+>>>>>>> 3eb04d1 (Fix Show time)
 // ==========================================
 // Authentication & User Profile Functions
 // ==========================================

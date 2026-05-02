@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, CalendarDays, Clapperboard, Save } from 'lucide-react';
-import { createAdminShowtime } from '@/services/api';
+import { createAdminShowtime, getAdminShowtimes, getMovies } from '@/services/api';
 
 const SHOWTIME_STORAGE_KEY = 'emerald_admin_showtimes';
 
@@ -22,6 +22,17 @@ export default function AddShowtimePage() {
   const [saving, setSaving] = useState(false);
 
   const isValidShowtime = useMemo(() => /^([01]\d|2[0-3]):([0-5]\d)$/.test(showtimeInput), [showtimeInput]);
+
+  function buildEndTime(startTime: string) {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const start = new Date(2000, 0, 1, hours, minutes, 0);
+    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+    const isCrossingDay = end.getDate() !== start.getDate();
+    if (isCrossingDay) {
+      return null;
+    }
+    return `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}:00`;
+  }
 
   async function handleSave(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -61,12 +72,49 @@ export default function AddShowtimePage() {
     setError(null);
 
     try {
+<<<<<<< HEAD
       const createdShowtime = await createAdminShowtime({
         MovieKeyword: movieValue,
         Branch: branchValue,
         Theater: theaterValue,
         ShowDate: showDate,
         StartTime: showtimeInput,
+=======
+      const movies = await getMovies();
+      const normalizedMovieValue = movieValue.toLowerCase();
+      const parsedMovieId = Number(movieValue);
+      const matchedMovie = Number.isInteger(parsedMovieId) && parsedMovieId > 0
+        ? movies.find((movie) => movie.id === parsedMovieId)
+        : movies.find((movie) => movie.title.toLowerCase() === normalizedMovieValue);
+
+      if (!matchedMovie) {
+        throw new Error('ไม่พบหนังในฐานข้อมูล กรุณาระบุ Movie ID หรือชื่อหนังให้ตรง');
+      }
+
+      const showtimeRows = await getAdminShowtimes();
+      const parsedTheaterNumber = Number(theaterValue);
+      const matchedTheater = showtimeRows.find(
+        (row) =>
+          row.BName.toLowerCase() === branchValue.toLowerCase() &&
+          row.ThNumber === parsedTheaterNumber,
+      );
+
+      if (!matchedTheater) {
+        throw new Error('ไม่พบโรงภาพยนตร์ของสาขานี้ในฐานข้อมูล');
+      }
+
+      const endTime = buildEndTime(showtimeInput);
+      if (!endTime) {
+        throw new Error('เวลาฉายต้องก่อน 22:00 เพราะระบบตั้ง EndTime อัตโนมัติ +2 ชั่วโมง');
+      }
+
+      await createAdminShowtime({
+        MID: matchedMovie.id,
+        ThID: matchedTheater.ThID,
+        ShowDate: showDate,
+        StartTime: `${showtimeInput}:00`,
+        EndTime: endTime,
+>>>>>>> 3eb04d1 (Fix Show time)
       });
 
       try {

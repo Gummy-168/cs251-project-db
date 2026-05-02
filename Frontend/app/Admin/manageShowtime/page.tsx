@@ -1,95 +1,69 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, PlusCircle, Trash2, CalendarPlus, X } from 'lucide-react';
 
-type Showtime = {
-  id: string;
+import { deleteAdminShowtime, getAdminShowtimes } from '@/services/api';
+import type { BackendAdminShowtimeListRecord } from '@/types/booking';
+
+type UiShowtime = {
+  id: number;
   time: string;
-  price: string;
-  showDate: string;
 };
 
-type Theater = {
+type UiTheater = {
   id: string;
   type: string;
-  showtimes: Showtime[];
+  showtimes: UiShowtime[];
 };
 
-type BranchSchedule = {
+type UiBranchSchedule = {
   branch: string;
-  theaters: Theater[];
+  theaters: UiTheater[];
 };
-
-const SHOWTIME_STORAGE_KEY = 'emerald_admin_showtimes';
-
-const initialScheduleData: BranchSchedule[] = [
-  {
-    branch: 'Rangsit',
-    theaters: [
-      {
-        id: 'Theater 1',
-        type: 'DIGITAL 4K',
-        showtimes: [
-          { id: 'rangsit-t1-2000', time: '20:00', price: '399.0', showDate: '2026-05-02' },
-          { id: 'rangsit-t1-2230', time: '22:30', price: '399.0', showDate: '2026-05-02' },
-        ],
-      },
-      {
-        id: 'Theater 2',
-        type: 'IMAX LASER',
-        showtimes: [{ id: 'rangsit-t2-1500', time: '15:00', price: '450.0', showDate: '2026-05-02' }],
-      },
-    ],
-  },
-  {
-    branch: 'Silom',
-    theaters: [
-      {
-        id: 'Theater 10',
-        type: 'EXECUTIVE SUITE',
-        showtimes: [{ id: 'silom-t10-1800', time: '18:00', price: '350.0', showDate: '2026-05-03' }],
-      },
-    ],
-  },
-];
 
 export default function ManageShowtimePage() {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [selectedDate, setSelectedDate] = useState('');
-  const [scheduleData, setScheduleData] = useState(initialScheduleData);
+  const [query, setQuery] = useState('');
+  const [rows, setRows] = useState<BackendAdminShowtimeListRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const effectiveDate = selectedDate || new Date().toISOString().slice(0, 10);
 
-  useEffect(() => {
+  async function loadShowtimes() {
     try {
-      const raw = window.localStorage.getItem(SHOWTIME_STORAGE_KEY);
-      if (!raw) {
-        return;
-      }
-
-      const parsed = JSON.parse(raw) as BranchSchedule[];
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const today = new Date().toISOString().slice(0, 10);
-        const normalized = parsed.map((branch) => ({
-          ...branch,
-          theaters: branch.theaters.map((theater) => ({
-            ...theater,
-            showtimes: theater.showtimes.map((show) => ({
-              ...show,
-              showDate: show.showDate ?? today,
-            })),
-          })),
-        }));
-        setScheduleData(normalized);
-      }
-    } catch {
-      // Keep default fallback when local storage is invalid.
+      setLoading(true);
+      setError(null);
+      const data = await getAdminShowtimes({
+        showDate: effectiveDate,
+        movieName: query.trim() || undefined,
+      });
+      setRows(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลรอบฉายได้');
+      setRows([]);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }
+
+  useEffect(() => {
+    loadShowtimes();
+  }, [effectiveDate]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadShowtimes();
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [query]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -102,41 +76,59 @@ export default function ManageShowtimePage() {
     }
   }, [isModalOpen]);
 
-  const handleDeleteShowtime = (showtimeId: string) => {
-    setScheduleData((currentSchedules) => {
-      const updated = currentSchedules
-        .map((branch) => ({
-          ...branch,
-          theaters: branch.theaters
-            .map((theater) => ({
-              ...theater,
-              showtimes: theater.showtimes.filter((showtime) => showtime.id !== showtimeId),
-            }))
-            .filter((theater) => theater.showtimes.length > 0),
-        }))
-        .filter((branch) => branch.theaters.length > 0);
+  const visibleScheduleData = useMemo<UiBranchSchedule[]>(() => {
+    const branchMap = new Map<string, UiBranchSchedule>();
 
-      window.localStorage.setItem(SHOWTIME_STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-  };
+    for (const row of rows) {
+      const branchKey = `${row.BID}`;
+      const theaterName = `Theater ${row.ThNumber}`;
+      const theaterKey = `${row.ThID}`;
 
-  const visibleScheduleData = scheduleData
-    .map((branch) => ({
-      ...branch,
-      theaters: branch.theaters
-        .map((theater) => ({
-          ...theater,
-          showtimes: theater.showtimes.filter((show) => show.showDate === effectiveDate),
-        }))
-        .filter((theater) => theater.showtimes.length > 0),
-    }))
-    .filter((branch) => branch.theaters.length > 0);
+      if (!branchMap.has(branchKey)) {
+        branchMap.set(branchKey, {
+          branch: row.BName,
+          theaters: [],
+        });
+      }
+
+      const branch = branchMap.get(branchKey)!;
+      let theater = branch.theaters.find((item) => item.id === theaterKey);
+
+      if (!theater) {
+        theater = {
+          id: theaterName,
+          type: row.ThType,
+          showtimes: [],
+        };
+        branch.theaters.push(theater);
+      }
+
+      theater.showtimes.push({
+        id: row.ShowtimeID,
+        time: row.StartTime,
+      });
+    }
+
+    return Array.from(branchMap.values());
+  }, [rows]);
+
+  async function handleDeleteShowtime(showtimeId: number) {
+    const isConfirmed = window.confirm('ยืนยันการลบรอบฉายนี้?');
+    if (!isConfirmed) {
+      return;
+    }
+
+    try {
+      await deleteAdminShowtime(showtimeId);
+      await loadShowtimes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ลบรอบฉายไม่สำเร็จ');
+    }
+  }
 
   const handleConfirmDate = () => {
-    const nextDate = effectiveDate;
     setIsModalOpen(false);
-    router.push(`/Admin/manageShowtime/addShowtime?date=${encodeURIComponent(nextDate)}`);
+    router.push(`/Admin/manageShowtime/addShowtime?date=${encodeURIComponent(effectiveDate)}`);
   };
 
   return (
@@ -150,6 +142,8 @@ export default function ManageShowtimePage() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
           <input
             type="text"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
             placeholder="Search Movie ID / Movie Name"
             className="w-full bg-[#1b2b20] text-white placeholder-gray-500 rounded-lg py-4 pl-12 pr-4 focus:outline-none focus:ring-1 focus:ring-emerald-500 border border-[#2d4634]"
           />
@@ -170,13 +164,25 @@ export default function ManageShowtimePage() {
           </button>
         </div>
 
-        <div className="flex flex-col gap-12">
-          {visibleScheduleData.length === 0 ? (
-            <div className="rounded-xl border border-[#2d4634] bg-[#1b2b20] p-6 text-sm text-gray-300">
-              ยังไม่มีรอบฉายในวันที่เลือก
-            </div>
-          ) : null}
+        {loading ? (
+          <div className="rounded-xl border border-[#2d4634] bg-[#1b2b20] p-6 text-sm text-gray-300">
+            กำลังโหลดข้อมูลรอบฉาย...
+          </div>
+        ) : null}
 
+        {error ? (
+          <div className="mb-8 rounded-xl border border-red-400/30 bg-red-950/30 p-6 text-sm text-red-100">
+            ไม่สามารถโหลดข้อมูลรอบฉายได้: {error}
+          </div>
+        ) : null}
+
+        {!loading && !error && visibleScheduleData.length === 0 ? (
+          <div className="rounded-xl border border-[#2d4634] bg-[#1b2b20] p-6 text-sm text-gray-300">
+            ยังไม่มีรอบฉายในวันที่เลือก
+          </div>
+        ) : null}
+
+        <div className="flex flex-col gap-12">
           {visibleScheduleData.map((branch, branchIndex) => (
             <div key={branchIndex}>
               <h3 className="text-2xl font-bold text-white flex items-center mb-6">
@@ -201,10 +207,6 @@ export default function ManageShowtimePage() {
                           <div className="flex items-center gap-8">
                             <div className="border border-emerald-500 text-emerald-400 font-bold text-lg px-4 py-2 rounded-md bg-[#0a100c]">
                               {show.time}
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-0.5">Price</span>
-                              <span className="text-gray-200 font-bold text-sm">{show.price} บาท</span>
                             </div>
                           </div>
 
