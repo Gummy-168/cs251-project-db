@@ -134,3 +134,19 @@ CREATE TABLE IF NOT EXISTS Booking (
 );
 
 
+-- Table : Ticket
+CREATE TABLE IF NOT EXISTS Ticket (
+    TicketID INT AUTO_INCREMENT PRIMARY KEY,
+    Price DECIMAL(10,2) NOT NULL CHECK (Price >= 0),
+    BookingID INT NOT NULL,
+    SeatID INT NOT NULL,
+    CONSTRAINT fk_ticket_booking
+        FOREIGN KEY (BookingID) REFERENCES Booking(BookingID)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_ticket_seat
+        FOREIGN KEY (SeatID) REFERENCES Seat(SeatID)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+
