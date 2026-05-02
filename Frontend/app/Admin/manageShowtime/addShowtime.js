@@ -11,19 +11,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 2. จัดการการบันทึก
-    const saveBtn = document.getElementById('saveBtn');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', () => {
-            const movieInfo = document.getElementById('movieInput').value;
-            const time = document.getElementById('timeInput').value;
+    saveBtn.addEventListener('click', () => {
+        const movieName = document.getElementById('movieInput').value;
+        const time = document.getElementById('timeInput').value;
+        const branch = document.getElementById('branchInput').value;
+        const theater = document.getElementById('theaterInput').value;
+        const price = document.getElementById('priceInput').value;
 
-            if (!movieInfo) {
-                alert('กรุณากรอกข้อมูลภาพยนตร์');
-                return;
-            }
+        if (!movieName || !time) {
+            alert('กรุณากรอกชื่อหนังและเวลา');
+            return;
+        }
 
-            alert(`บันทึกรอบฉายหนัง: ${movieInfo} เวลา: ${time} เรียบร้อย!`);
-            window.location.href = 'manageShowtime.html';
-        });
-    }
+        const newShowtime = {
+            id: Date.now(), // ใช้ตัวเลข Unique สำหรับลบ
+            movieName,
+            time,
+            branch,
+            theater,
+            price,
+            format: document.getElementById('formatInput').value
+        };
+
+        const existingData = JSON.parse(localStorage.getItem('emerald_showtimes')) || [];
+        existingData.push(newShowtime);
+        localStorage.setItem('emerald_showtimes', JSON.stringify(existingData));
+
+        alert('บันทึกสำเร็จ!');
+        window.location.href = 'manageShowtime.html';
+    });
 });
