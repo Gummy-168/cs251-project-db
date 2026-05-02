@@ -72,49 +72,12 @@ export default function AddShowtimePage() {
     setError(null);
 
     try {
-<<<<<<< HEAD
       const createdShowtime = await createAdminShowtime({
         MovieKeyword: movieValue,
         Branch: branchValue,
         Theater: theaterValue,
         ShowDate: showDate,
         StartTime: showtimeInput,
-=======
-      const movies = await getMovies();
-      const normalizedMovieValue = movieValue.toLowerCase();
-      const parsedMovieId = Number(movieValue);
-      const matchedMovie = Number.isInteger(parsedMovieId) && parsedMovieId > 0
-        ? movies.find((movie) => movie.id === parsedMovieId)
-        : movies.find((movie) => movie.title.toLowerCase() === normalizedMovieValue);
-
-      if (!matchedMovie) {
-        throw new Error('ไม่พบหนังในฐานข้อมูล กรุณาระบุ Movie ID หรือชื่อหนังให้ตรง');
-      }
-
-      const showtimeRows = await getAdminShowtimes();
-      const parsedTheaterNumber = Number(theaterValue);
-      const matchedTheater = showtimeRows.find(
-        (row) =>
-          row.BName.toLowerCase() === branchValue.toLowerCase() &&
-          row.ThNumber === parsedTheaterNumber,
-      );
-
-      if (!matchedTheater) {
-        throw new Error('ไม่พบโรงภาพยนตร์ของสาขานี้ในฐานข้อมูล');
-      }
-
-      const endTime = buildEndTime(showtimeInput);
-      if (!endTime) {
-        throw new Error('เวลาฉายต้องก่อน 22:00 เพราะระบบตั้ง EndTime อัตโนมัติ +2 ชั่วโมง');
-      }
-
-      await createAdminShowtime({
-        MID: matchedMovie.id,
-        ThID: matchedTheater.ThID,
-        ShowDate: showDate,
-        StartTime: `${showtimeInput}:00`,
-        EndTime: endTime,
->>>>>>> 3eb04d1 (Fix Show time)
       });
 
       try {
