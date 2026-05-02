@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emerald Cinema - Add New Showtime</title>
+    <link rel="stylesheet" href="addShowtime.css">
+    <link rel="stylesheet" href="manageShowtime.css"> 
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="dashboard-body">
+
+    <div class="sidebar">
+        <div class="logo">
+            <h1>EMERALD CINEMA</h1>
+            <span>PROJECTION BOOTH V1.0</span>
+        </div>
+        <nav>
+            <div class="nav-item">REPORT</div>
+            <div class="nav-item">EVENT HANDLING</div>
+            <div class="nav-item active">MANAGE SHOWTIME</div>
+            <div class="nav-item" onclick="location.href='../editMovie/editMovie.html'">EDIT MOVIE</div>
+        </nav>
+        <button class="logout-btn">LOG OUT</button>
+    </div>
+
+    <main class="content">
+        <a href="manageShowtime.html" class="back-link">← BACK TO MANAGE SHOWTIME</a>
+        
+        <div class="form-header">
+            <h2>เพิ่มรายละเอียดรอบฉาย</h2>
+            <p>Fill in the screening details to add a new showtime to the schedule.</p>
+        </div>
+
+        <div class="form-card">
+            <div class="input-grid">
+                <div class="input-group full-width">
+                    <label>NAME MOVIE (ชื่อหนัง)</label>
+                    <div class="input-wrapper">
+                        <span class="icon">🎬</span>
+                        <input type="text" id="movieInput" placeholder="ระบุ Movie ID หรือ Movie Name">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>BRANCH (สาขา)</label>
+                    <input type="text" id="branchInput" value="RANGSIT">
+                </div>
+
+                <div class="input-group">
+                    <label>THEATER (โรงภาพยนตร์)</label>
+                    <input type="text" id="theaterInput" value="1">
+                </div>
+
+                <div class="input-group">
+                    <label>SHOWTIME (เวลาที่ฉาย)</label>
+                    <input type="time" id="timeInput" value="19:00">
+                </div>
+
+                <div class="input-group">
+                    <label>PRICE (ราคา)</label>
+                    <div class="price-input-wrapper">
+                        <input type="number" id="priceInput" value="240">
+                        <span class="currency">บาท</span>
+                    </div>
+                </div>
+
+                <div class="input-group full-width" style="display: none;">
+                    <input type="hidden" id="showtimeDate">
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-actions">
+            <button class="save-btn-glow" id="saveBtn">
+                <span class="save-icon">💾</span> SAVE
+            </button>
+        </div>
+    </main>
+
+    <script src="addShowtime.js"></script>
+</body>
+</html>

@@ -1,4 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
+// ฟังก์ชันสำหรับส่งค่าวันที่ไปหน้า addShowtime
+    const goToWithDate = () => {
+        // ดึงข้อความ "10 กุมภาพันธ์ 2569" จาก <h2>
+        const dateText = document.querySelector('.date-display h2').innerText;
+        // ส่งไปหน้า addShowtime.html?date=...
+        window.location.href = `addShowtime.html?date=${encodeURIComponent(dateText)}`;
+    };
+
+    const createBtn = document.querySelector('.create-btn');
+    if (createBtn) {
+        createBtn.onclick = goToWithDate;
+    }
+
+    const fabBtn = document.querySelector('.fab-calendar-btn');
+    if (fabBtn) {
+        fabBtn.onclick = goToWithDate;
+    }
     // ระบบ Log Out (เหมือนหน้า editMovie)
     const logoutBtn = document.querySelector('.logout-btn');
     if (logoutBtn) {
