@@ -65,7 +65,7 @@ def generate_standard_seat_layout(theater_id: int) -> list[dict]:
 
     for row in rows:
         is_premium_row = row in {"I", "J", "K", "L"}
-        seat_type = "VIP" if is_premium_row else "Regular"
+        seat_type = "Premium" if is_premium_row else "Regular"
         price = 250.00 if is_premium_row else 200.00
 
         for seat_number in range(1, 9):
@@ -269,6 +269,48 @@ def calculate_promotion_discount(total_price: Decimal, promotion: dict | None) -
     return discount_amount.quantize(Decimal("0.01")), final_price.quantize(Decimal("0.01"))
 
 
+def ensure_showtime_price_column() -> None:
+    db = SessionLocal()
+    try:
+        for column_name, default_value in (
+            ("Price", "240.00"),
+            ("PremiumExtraPrice", "50.00"),
+        ):
+            has_column = fetch_one(
+                db,
+                """
+                SELECT 1
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'Showtime'
+                  AND COLUMN_NAME = :column_name
+                LIMIT 1
+                """,
+                {"column_name": column_name},
+            )
+            if has_column:
+                continue
+            db.execute(
+                text(
+                    f"""
+                    ALTER TABLE `Showtime`
+                    ADD COLUMN `{column_name}` DECIMAL(10,2) NOT NULL DEFAULT {default_value}
+                    """
+                )
+            )
+            db.commit()
+    finally:
+        db.close()
+
+
+def resolve_seat_price(seat_row: str, showtime_row: dict) -> Decimal:
+    base_price = Decimal(str(showtime_row["Price"]))
+    premium_extra = Decimal(str(showtime_row["PremiumExtraPrice"]))
+    if seat_row.upper() in {"I", "J", "K", "L"}:
+        return base_price + premium_extra
+    return base_price
+
+
 def seed_initial_data() -> None:
     db = SessionLocal()
     try:
@@ -408,8 +450,20 @@ def seed_initial_data() -> None:
             theater_id = theater_result.lastrowid
 
         default_showtimes = [
-            {"show_date": "2026-05-02", "start_time": "15:23:00", "end_time": "17:23:00"},
-            {"show_date": "2026-05-02", "start_time": "22:30:00", "end_time": "23:59:00"},
+            {
+                "show_date": "2026-05-02",
+                "start_time": "15:23:00",
+                "end_time": "17:23:00",
+                "price": 240.00,
+                "premium_extra_price": 50.00,
+            },
+            {
+                "show_date": "2026-05-02",
+                "start_time": "22:30:00",
+                "end_time": "23:59:00",
+                "price": 240.00,
+                "premium_extra_price": 50.00,
+            },
         ]
 
         for item in default_showtimes:
@@ -438,8 +492,8 @@ def seed_initial_data() -> None:
             db.execute(
                 text(
                     """
-                    INSERT INTO `Showtime` (ShowDate, StartTime, EndTime, ThID, MID)
-                    VALUES (:show_date, :start_time, :end_time, :thid, :mid)
+                    INSERT INTO `Showtime` (ShowDate, StartTime, EndTime, ThID, MID, Price, PremiumExtraPrice)
+                    VALUES (:show_date, :start_time, :end_time, :thid, :mid, :price, :premium_extra_price)
                     """
                 ),
                 {
@@ -448,6 +502,8 @@ def seed_initial_data() -> None:
                     "end_time": item["end_time"],
                     "thid": theater_id,
                     "mid": movie_id,
+                    "price": item["price"],
+                    "premium_extra_price": item["premium_extra_price"],
                 },
             )
             db.commit()
@@ -457,6 +513,7 @@ def seed_initial_data() -> None:
 
 @app.on_event("startup")
 def startup_tasks():
+    ensure_showtime_price_column()
     seed_initial_data()
 
 @app.get("/api/db-test")
@@ -809,6 +866,10 @@ def create_showtime(showtime: schemas.AdminShowtimeCreate, db: Session = Depends
     resolved_mid, movie_duration = resolve_movie_id(db, showtime)
     resolved_thid = resolve_theater_id(db, showtime)
     computed_end_time = showtime.EndTime or compute_end_time(showtime.StartTime, movie_duration)
+    resolved_price = showtime.Price if showtime.Price is not None else Decimal("240.00")
+    resolved_premium_extra_price = (
+        showtime.PremiumExtraPrice if showtime.PremiumExtraPrice is not None else Decimal("50.00")
+    )
 
     if computed_end_time <= showtime.StartTime:
         raise HTTPException(
@@ -823,13 +884,15 @@ def create_showtime(showtime: schemas.AdminShowtimeCreate, db: Session = Depends
             "EndTime": computed_end_time,
             "ThID": resolved_thid,
             "MID": resolved_mid,
+            "Price": resolved_price,
+            "PremiumExtraPrice": resolved_premium_extra_price,
         }
 
         result = db.execute(
             text(
                 """
-                INSERT INTO `Showtime` (ShowDate, StartTime, EndTime, ThID, MID)
-                VALUES (:ShowDate, :StartTime, :EndTime, :ThID, :MID)
+                INSERT INTO `Showtime` (ShowDate, StartTime, EndTime, ThID, MID, Price, PremiumExtraPrice)
+                VALUES (:ShowDate, :StartTime, :EndTime, :ThID, :MID, :Price, :PremiumExtraPrice)
                 """
             ),
             payload,
@@ -888,7 +951,9 @@ def update_showtime(showtime_id: int, showtime: schemas.ShowtimeCreate, db: Sess
                 StartTime = :StartTime,
                 EndTime = :EndTime,
                 ThID = :ThID,
-                MID = :MID
+                MID = :MID,
+                Price = COALESCE(:Price, Price),
+                PremiumExtraPrice = COALESCE(:PremiumExtraPrice, PremiumExtraPrice)
             WHERE ShowtimeID = :showtime_id
             """
         ),
@@ -1576,6 +1641,8 @@ def check_available_seats(showtime_id: int, db: Session = Depends(get_db)):
         text(
             """
             SELECT ShowtimeID, ThID
+                 , COALESCE(Price, 240.00) AS Price
+                 , COALESCE(PremiumExtraPrice, 50.00) AS PremiumExtraPrice
             FROM Showtime
             WHERE ShowtimeID = :showtime_id
             """
@@ -1609,6 +1676,7 @@ def check_available_seats(showtime_id: int, db: Session = Depends(get_db)):
     }
 
     for seat in base_layout:
+        seat["Price"] = resolve_seat_price(seat["SeatRow"], showtime)
         if (seat["SeatRow"], seat["SeatNumber"]) in booked_lookup:
             seat["SeatStatus"] = "Booked"
 
@@ -1644,7 +1712,9 @@ def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)
     showtime = db.execute(
         text(
             """
-            SELECT ShowtimeID, ThID
+            SELECT ShowtimeID, ThID,
+                   COALESCE(Price, 240.00) AS Price,
+                   COALESCE(PremiumExtraPrice, 50.00) AS PremiumExtraPrice
             FROM Showtime
             WHERE ShowtimeID = :showtime_id
             """
@@ -1693,7 +1763,7 @@ def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)
                 "SeatRow": normalized_row,
                 "SeatNumber": seat.SeatNumber,
                 "SeatType": seat_meta["SeatType"],
-                "Price": seat_meta["Price"],
+                "Price": resolve_seat_price(normalized_row, showtime),
             }
         )
 
@@ -1760,7 +1830,7 @@ def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)
                 {
                     "seat_row": seat["SeatRow"],
                     "seat_number": seat["SeatNumber"],
-                    "seat_type": seat["SeatType"],
+                    "seat_type": "VIP" if seat["SeatType"] == "Premium" else seat["SeatType"],
                     "theater_id": theater_id,
                 },
             )

@@ -80,6 +80,8 @@ CREATE TABLE IF NOT EXISTS Showtime (
     EndTime TIME NOT NULL,
     ThID INT NOT NULL,
     MID INT NOT NULL,
+    Price DECIMAL(10,2) NOT NULL DEFAULT 240.00,
+    PremiumExtraPrice DECIMAL(10,2) NOT NULL DEFAULT 50.00,
     CONSTRAINT chk_showtime_time CHECK (EndTime > StartTime),
     CONSTRAINT fk_showtime_theater
         FOREIGN KEY (ThID) REFERENCES Theater(ThID)

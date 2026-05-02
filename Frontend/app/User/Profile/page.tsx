@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { AUTH_COOKIE_NAME } from "@/lib/auth";
 import type { UserAuth } from "@/types/user";
 
 export default function ProfilePage() {
@@ -25,6 +26,13 @@ export default function ProfilePage() {
       router.push("/User/Signin");
     }
   }, [router]);
+
+  function handleLogout() {
+    localStorage.removeItem("emerald_user");
+    document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
+    router.push("/User/Signin");
+    router.refresh();
+  }
 
   if (!user) {
     return null;
@@ -98,7 +106,14 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="mt-10 flex justify-end">
+            <div className="mt-10 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-block rounded-full border border-red-400/45 px-8 py-3 text-sm font-semibold text-red-100 transition hover:bg-red-500 hover:text-white"
+              >
+                Logout
+              </button>
               <Link
                 href="/User/Profile-edit"
                 className="inline-block rounded-full border border-[#63e86f] px-8 py-3 text-sm font-semibold text-white transition hover:bg-[#63e86f] hover:text-[#06160a]"

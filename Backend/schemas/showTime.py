@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from datetime import date, time
 from typing import List, Optional
+from decimal import Decimal
 
 # Showtime Schemas
 class ShowtimeBase(BaseModel):
@@ -13,6 +14,8 @@ class ShowtimeBase(BaseModel):
 
 class ShowtimeCreate(ShowtimeBase):
     EndTime: Optional[time] = None
+    Price: Optional[Decimal] = Field(default=None, gt=0)
+    PremiumExtraPrice: Optional[Decimal] = Field(default=None, ge=0)
 
 
 class AdminShowtimeCreate(BaseModel):
@@ -24,6 +27,8 @@ class AdminShowtimeCreate(BaseModel):
     ShowDate: date
     StartTime: time
     EndTime: Optional[time] = None
+    Price: Optional[Decimal] = Field(default=None, gt=0)
+    PremiumExtraPrice: Optional[Decimal] = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def validate_identity_fields(self):
