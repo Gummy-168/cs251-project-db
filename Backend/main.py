@@ -899,6 +899,41 @@ def get_movie_by_id(movie_id: int, db: Session = Depends(get_db)):
 
     return dict(movie)
 
+@app.get("/api/users/{uid}/movies", response_model=List[schemas.MovieResponse], tags=["User - Cinema"])
+def get_user_related_movies(uid: int, db: Session = Depends(get_db)):
+    """
+    User Function: Get movies linked to a user via booking or review history
+    """
+    ensure_record_exists(db, "User", "UID", uid, "User not found")
+
+    movies = db.execute(
+        text(
+            """
+            SELECT DISTINCT
+                m.MID,
+                m.MName,
+                m.Genre,
+                m.Duration,
+                m.AgeRating,
+                m.Description,
+                m.ReleaseDate,
+                m.Actor,
+                m.Director,
+                m.ScoreRating,
+                m.AID
+            FROM `Movie` m
+            LEFT JOIN `Showtime` s ON s.MID = m.MID
+            LEFT JOIN `Booking` b ON b.ShowtimeID = s.ShowtimeID
+            LEFT JOIN `Review` r ON r.MID = m.MID
+            WHERE b.UID = :uid OR r.UID = :uid
+            ORDER BY m.ReleaseDate DESC, m.MID DESC
+            """
+        ),
+        {"uid": uid},
+    ).mappings().all()
+
+    return [dict(movie) for movie in movies]
+
 @app.get("/api/movies/{movie_id}/showtimes", response_model=List[schemas.MovieShowtimeDateGroupResponse], tags=["User - Cinema"])
 def get_showtimes_by_movie_id(movie_id: int, db: Session = Depends(get_db)):
     """
