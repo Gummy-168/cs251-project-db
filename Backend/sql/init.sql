@@ -106,3 +106,31 @@ CREATE TABLE IF NOT EXISTS Promotion (
         ON UPDATE CASCADE
         ON DELETE RESTRICT
 );
+
+-- Table: Booking
+CREATE TABLE IF NOT EXISTS Booking (
+    BookingID INT AUTO_INCREMENT PRIMARY KEY,
+    BookingStatus VARCHAR(20) NOT NULL,
+    BookingDate DATE NOT NULL,
+    TotalPrice DECIMAL(10,2) NOT NULL CHECK (TotalPrice >= 0),
+    UID INT NOT NULL,
+    ShowtimeID INT NOT NULL,
+    PromotionID INT,
+    CONTRASINT fk_booking_user
+        FOREIGN KEY (UID) REFERENCES User(UID)
+        ON UPDATE CASCADE
+            CONSTRAINT fk_booking_user
+        FOREIGN KEY (UID) REFERENCES User(UID)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_booking_showtime
+        FOREIGN KEY (ShowtimeID) REFERENCES Showtime(ShowtimeID)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_booking_promotion
+        FOREIGN KEY (PromotionID) REFERENCES Promotion(PromotionID)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
+);
+
+
