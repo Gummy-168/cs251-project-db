@@ -86,10 +86,11 @@ class User(Base):
 class Promotion(Base):
     __tablename__ = "promotion"
     PromotionID = Column(Integer, primary_key=True, index=True)
-    PromoCode = Column(String(50), unique=True, nullable=False)
-    Description = Column(String(255), nullable=True)
-    Discount = Column(Numeric(5, 2), nullable=False)  # 10.00 = ลด 10%
-    ExpiryDate = Column(Date, nullable=False)
+    PromotionName = Column(String(100), unique=True, nullable=False)
+    DiscountType = Column(String(20), nullable=False) # Percentage, Fixed Amount
+    DiscountValue = Column(Numeric(5, 2), nullable=False)  # 10.00 = ลด 10%
+    EndDate = Column(Date, nullable=False)
+    AID = Column(Integer, ForeignKey("admin.AID"), nullable=False)
 
     bookings = relationship("Booking", back_populates="promotion")
 
