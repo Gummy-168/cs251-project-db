@@ -5,8 +5,15 @@ import type {
   MovieDetailPerson,
 } from "@/types/movie";
 import type {
+  BackendBookingReview,
   BackendMovieShowtimeDateGroup,
+  BackendUserBookingHistory,
+  BookingCreatePayload,
+  BookingRecord,
   MovieShowtimeDateGroup,
+  ReviewCreatePayload,
+  ReviewRecord,
+  UserBookingHistory,
 } from "@/types/booking";
 import type {
   UserAuth,
@@ -15,6 +22,7 @@ import type {
   UserSigninResponse,
   UserUpdatePayload,
 } from "@/types/user";
+import type { BackendSeat, SeatLayoutSeat } from "@/types/seat";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8000";
@@ -130,6 +138,76 @@ function mapShowtimeGroups(
   }));
 }
 
+function mapSeatLayout(seats: BackendSeat[]): SeatLayoutSeat[] {
+  return seats.map((seat) => {
+    const parsedPrice =
+      seat.Price === null || seat.Price === undefined
+        ? 0
+        : Number(seat.Price);
+
+    const isPremiumType =
+      seat.SeatType === "VIP" || seat.SeatType === "Honeymoon";
+
+    return {
+      id: `${seat.SeatRow}${seat.SeatNumber}`,
+      seatId: seat.SeatID,
+      row: seat.SeatRow,
+      number: seat.SeatNumber,
+      status:
+        seat.SeatStatus === "Available"
+          ? isPremiumType
+            ? "premium"
+            : "standard"
+          : "unavailable",
+      seatType: seat.SeatType,
+      price: Number.isNaN(parsedPrice) ? 0 : parsedPrice,
+      theaterId: seat.ThID,
+    };
+  });
+}
+
+function mapUserBookings(bookings: BackendUserBookingHistory[]): UserBookingHistory[] {
+  return bookings.map((booking) => ({
+    bookingId: booking.BookingID,
+    bookingDate: booking.BookingDate,
+    bookingStatus: booking.BookingStatus,
+    totalPrice: Number(booking.TotalPrice),
+    uid: booking.UID,
+    showtimeId: booking.ShowtimeID,
+    promotionId: booking.PromotionID ?? null,
+    movieId: booking.MID,
+    movieTitle: booking.MName,
+    showDate: booking.ShowDate,
+    startTime: booking.StartTime,
+    endTime: booking.EndTime,
+    branchId: booking.BID,
+    branchName: booking.BName,
+    branchLocation: booking.BLocation,
+    theaterId: booking.ThID,
+    theaterNumber: booking.ThNumber,
+    theaterType: booking.ThType,
+    seats: booking.Seats.map((seat) => ({
+      ticketId: seat.TicketID,
+      seatId: seat.SeatID,
+      seatRow: seat.SeatRow,
+      seatNumber: seat.SeatNumber,
+      price: Number(seat.Price),
+    })),
+    review: booking.Review
+      ? mapBookingReview(booking.Review)
+      : null,
+  }));
+}
+
+function mapBookingReview(review: BackendBookingReview) {
+  return {
+    reviewId: review.ReviewID,
+    reviewDate: review.ReviewDate,
+    reviewScore: review.ReviewScore,
+    comment: review.Comment ?? null,
+  };
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -177,6 +255,41 @@ export async function getShowtimesByMovieId(
     `/api/movies/${movieId}/showtimes`
   );
   return mapShowtimeGroups(groups);
+}
+
+export async function getSeatsByShowtimeId(
+  showtimeId: string | number
+): Promise<SeatLayoutSeat[]> {
+  const seats = await apiFetch<BackendSeat[]>(`/api/showtimes/${showtimeId}/seats`);
+  return mapSeatLayout(seats);
+}
+
+export async function createBooking(
+  bookingData: BookingCreatePayload
+): Promise<BookingRecord> {
+  return apiFetch<BookingRecord>("/api/bookings", {
+    method: "POST",
+    body: JSON.stringify(bookingData),
+  });
+}
+
+export async function getUserBookings(
+  uid: number
+): Promise<UserBookingHistory[]> {
+  const bookings = await apiFetch<BackendUserBookingHistory[]>(
+    `/api/users/${uid}/bookings`
+  );
+
+  return mapUserBookings(bookings);
+}
+
+export async function submitReview(
+  reviewData: ReviewCreatePayload
+): Promise<ReviewRecord> {
+  return apiFetch<ReviewRecord>("/api/reviews", {
+    method: "POST",
+    body: JSON.stringify(reviewData),
+  });
 }
 
 export async function registerUser(

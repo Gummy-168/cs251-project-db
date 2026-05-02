@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { createBooking } from "@/services/api";
 
 export default function PaymentPage() {
   const router = useRouter();
@@ -10,7 +11,13 @@ export default function PaymentPage() {
 
   const showtimeId = searchParams.get("showtimeId");
   const seatIdsRaw = searchParams.get("seatIds") ?? "";
-  const totalRaw = searchParams.get("total");
+  const totalRaw =
+    searchParams.get("totalPrice") ?? searchParams.get("total") ?? "";
+  const movieId = searchParams.get("movieId");
+  const [uid, setUid] = useState<number | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const seatIds = useMemo(
     () =>
@@ -26,7 +33,100 @@ export default function PaymentPage() {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   }, [totalRaw]);
 
-  const canConfirmPayment = Boolean(showtimeId) && seatIds.length > 0 && total > 0;
+  const parsedShowtimeId = useMemo(() => {
+    const parsed = Number(showtimeId);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  }, [showtimeId]);
+
+  const parsedSeats = useMemo(() => {
+    return seatIds
+      .map((seatId) => {
+        const match = seatId.trim().toUpperCase().match(/^([A-Z]+)(\d+)$/);
+
+        if (!match) {
+          return null;
+        }
+
+        return {
+          SeatRow: match[1],
+          SeatNumber: Number(match[2]),
+        };
+      })
+      .filter(
+        (seat): seat is { SeatRow: string; SeatNumber: number } => seat !== null
+      );
+  }, [seatIds]);
+
+  useEffect(() => {
+    const rawUser = window.localStorage.getItem("emerald_user");
+
+    if (!rawUser) {
+      router.replace("/User/Signin");
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(rawUser) as { UID?: number };
+
+      if (!parsedUser.UID) {
+        window.localStorage.removeItem("emerald_user");
+        router.replace("/User/Signin");
+        return;
+      }
+
+      setUid(parsedUser.UID);
+      setAuthChecked(true);
+    } catch {
+      window.localStorage.removeItem("emerald_user");
+      router.replace("/User/Signin");
+    }
+  }, [router]);
+
+  const canConfirmPayment =
+    authChecked &&
+    uid !== null &&
+    parsedShowtimeId !== null &&
+    seatIds.length > 0 &&
+    parsedSeats.length === seatIds.length &&
+    total > 0 &&
+    !submitting;
+
+  async function handleConfirmPayment() {
+    if (!canConfirmPayment || parsedShowtimeId === null || uid === null) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const booking = await createBooking({
+        ShowtimeID: parsedShowtimeId,
+        UID: uid,
+        Seats: parsedSeats,
+      });
+
+      alert("ชำระเงินสำเร็จและบันทึกการจองเรียบร้อยแล้ว");
+
+      const params = new URLSearchParams({
+        bookingId: String(booking.BookingID),
+      });
+
+      if (movieId) {
+        params.set("movieId", movieId);
+      }
+
+      router.push(`/User/Ticket?${params.toString()}`);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "ไม่สามารถบันทึกการจองได้ กรุณาลองใหม่อีกครั้ง"
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <main className="min-h-screen w-full bg-[#06160a] text-white">
@@ -104,9 +204,23 @@ export default function PaymentPage() {
             กรุณาชำระเงินภายใน 09:59
           </p>
 
+          {authChecked && parsedSeats.length !== seatIds.length && (
+            <p className="mt-4 rounded-full bg-red-950/40 px-4 py-2 text-xs text-red-100">
+              พบรูปแบบที่นั่งไม่ถูกต้อง กรุณาเลือกที่นั่งใหม่อีกครั้ง
+            </p>
+          )}
+
           {!canConfirmPayment && (
             <p className="mt-4 rounded-full bg-red-950/40 px-4 py-2 text-xs text-red-100">
-              ข้อมูลการชำระเงินไม่ครบ กรุณาเลือกที่นั่งใหม่
+              {authChecked
+                ? "ข้อมูลการชำระเงินไม่ครบ กรุณาเลือกที่นั่งใหม่"
+                : "กำลังตรวจสอบข้อมูลผู้ใช้งาน"}
+            </p>
+          )}
+
+          {error && (
+            <p className="mt-4 rounded-full bg-red-950/40 px-4 py-2 text-xs text-red-100">
+              {error}
             </p>
           )}
 
@@ -114,21 +228,14 @@ export default function PaymentPage() {
           <button
             type="button"
             disabled={!canConfirmPayment}
-            onClick={() => {
-              if (!canConfirmPayment) {
-                return;
-              }
-
-              alert("ระบบตรวจสอบการชำระเงินเรียบร้อยแล้ว");
-              router.push("/User/Ticket");
-            }}
+            onClick={handleConfirmPayment}
             className={`mt-6 w-full rounded-full py-3 font-bold transition ${
               canConfirmPayment
                 ? "bg-[#63e86f] text-black hover:bg-[#4ebd5a]"
                 : "cursor-not-allowed bg-[#3f5742] text-[#b7c7b8]"
             }`}
           >
-            เสร็จสิ้น
+            {submitting ? "กำลังบันทึกการจอง..." : "เสร็จสิ้น"}
           </button>
 
           <div className="mt-6 text-xs bg-[#172319] inline-block px-4 py-2 rounded-full">

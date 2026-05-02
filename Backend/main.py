@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import engine, SessionLocal
 from typing import List
+from datetime import date
 import hashlib
 import models
 import schemas
@@ -50,6 +51,43 @@ def serialize_user_row(row) -> dict:
         "UEmail": row["UEmail"],
         "UPhoneNumber": row["UPhoneNumber"],
     }
+
+
+def generate_standard_seat_layout(theater_id: int) -> list[dict]:
+    layout = []
+    rows = [chr(code) for code in range(ord("A"), ord("L") + 1)]
+    seat_id = 1
+
+    for row in rows:
+        is_premium_row = row in {"I", "J", "K", "L"}
+        seat_type = "VIP" if is_premium_row else "Regular"
+        price = 250.00 if is_premium_row else 200.00
+
+        for seat_number in range(1, 9):
+            layout.append(
+                {
+                    "SeatID": theater_id * 1000 + seat_id,
+                    "SeatStatus": "Available",
+                    "SeatRow": row,
+                    "SeatNumber": seat_number,
+                    "SeatType": seat_type,
+                    "ThID": theater_id,
+                    "Price": price,
+                }
+            )
+            seat_id += 1
+
+    return layout
+
+
+def get_standard_seat_meta(seat_row: str, seat_number: int, theater_id: int) -> dict | None:
+    normalized_row = seat_row.strip().upper()
+
+    for seat in generate_standard_seat_layout(theater_id):
+        if seat["SeatRow"] == normalized_row and seat["SeatNumber"] == seat_number:
+            return seat
+
+    return None
 
 @app.get("/api/db-test")
 def db_test(db: Session = Depends(get_db)):
@@ -622,17 +660,47 @@ def check_available_seats(showtime_id: int, db: Session = Depends(get_db)):
     User Function: Check Available Seat
     TODO: Database implement (SELECT * FROM Seat WHERE ThID = ...)
     """
-    # MOCK DATA: Replace with real database query output
-    return [
-        {
-            "SeatID": 5001,
-            "SeatStatus": "Available",
-            "SeatRow": "A",
-            "SeatNumber": 12,
-            "SeatType": "Standard",
-            "ThID": 101
-        }
-    ]
+    showtime = db.execute(
+        text(
+            """
+            SELECT ShowtimeID, ThID
+            FROM Showtime
+            WHERE ShowtimeID = :showtime_id
+            """
+        ),
+        {"showtime_id": showtime_id},
+    ).mappings().first()
+
+    if not showtime:
+        raise HTTPException(status_code=404, detail="Showtime not found")
+
+    base_layout = generate_standard_seat_layout(showtime["ThID"])
+
+    booked_seats = db.execute(
+        text(
+            """
+            SELECT
+                s.SeatRow,
+                s.SeatNumber
+            FROM Ticket t
+            JOIN Booking b ON t.BookingID = b.BookingID
+            JOIN Seat s ON t.SeatID = s.SeatID
+            WHERE b.ShowtimeID = :showtime_id
+            """
+        ),
+        {"showtime_id": showtime_id},
+    ).mappings().all()
+
+    booked_lookup = {
+        (seat["SeatRow"], seat["SeatNumber"])
+        for seat in booked_seats
+    }
+
+    for seat in base_layout:
+        if (seat["SeatRow"], seat["SeatNumber"]) in booked_lookup:
+            seat["SeatStatus"] = "Booked"
+
+    return base_layout
 
 # branch endpoints
 
@@ -656,26 +724,356 @@ def search_branches(branch_id: int, db: Session = Depends(get_db)):
 @app.post("/api/bookings", response_model=schemas.BookingResponse, tags=["User - Booking"], status_code=status.HTTP_201_CREATED)
 def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)):
     """
-    User Function: Create Booking
-    TODO: Database implement (INSERT INTO Booking -> db.commit)
+    User Function: Create Booking and Tickets
     """
-    # MOCK DATA: Replace with real database output
-    return {**booking.model_dump(), "BookingID": 7777}
+    if not booking.Seats:
+        raise HTTPException(status_code=400, detail="At least one seat is required")
+
+    showtime = db.execute(
+        text(
+            """
+            SELECT ShowtimeID, ThID
+            FROM Showtime
+            WHERE ShowtimeID = :showtime_id
+            """
+        ),
+        {"showtime_id": booking.ShowtimeID},
+    ).mappings().first()
+
+    if not showtime:
+        raise HTTPException(status_code=404, detail="Showtime not found")
+
+    user = db.execute(
+        text(
+            """
+            SELECT UID
+            FROM `User`
+            WHERE UID = :uid
+            """
+        ),
+        {"uid": booking.UID},
+    ).mappings().first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    theater_id = showtime["ThID"]
+    normalized_seats = []
+    seen_seats = set()
+
+    for seat in booking.Seats:
+        normalized_row = seat.SeatRow.strip().upper()
+        seat_key = (normalized_row, seat.SeatNumber)
+
+        if seat_key in seen_seats:
+            raise HTTPException(status_code=400, detail="Duplicate seats are not allowed")
+
+        seat_meta = get_standard_seat_meta(normalized_row, seat.SeatNumber, theater_id)
+        if not seat_meta:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Seat {normalized_row}{seat.SeatNumber} is outside the standard layout",
+            )
+
+        seen_seats.add(seat_key)
+        normalized_seats.append(
+            {
+                "SeatRow": normalized_row,
+                "SeatNumber": seat.SeatNumber,
+                "SeatType": seat_meta["SeatType"],
+                "Price": seat_meta["Price"],
+            }
+        )
+
+    seat_records = []
+    total_price = sum(seat["Price"] for seat in normalized_seats)
+
+    try:
+        for seat in normalized_seats:
+            existing_seat = db.execute(
+                text(
+                    """
+                    SELECT SeatID, SeatStatus, SeatType
+                    FROM Seat
+                    WHERE ThID = :theater_id
+                      AND SeatRow = :seat_row
+                      AND SeatNumber = :seat_number
+                    ORDER BY SeatID ASC
+                    LIMIT 1
+                    """
+                ),
+                {
+                    "theater_id": theater_id,
+                    "seat_row": seat["SeatRow"],
+                    "seat_number": seat["SeatNumber"],
+                },
+            ).mappings().first()
+
+            if existing_seat:
+                if existing_seat["SeatStatus"] == "Unavailable":
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"Seat {seat['SeatRow']}{seat['SeatNumber']} is unavailable",
+                    )
+
+                seat_records.append(
+                    {
+                        "SeatID": existing_seat["SeatID"],
+                        "SeatRow": seat["SeatRow"],
+                        "SeatNumber": seat["SeatNumber"],
+                        "Price": seat["Price"],
+                    }
+                )
+                continue
+
+            created_seat = db.execute(
+                text(
+                    """
+                    INSERT INTO Seat (SeatStatus, SeatRow, SeatNumber, SeatType, ThID)
+                    VALUES ('Available', :seat_row, :seat_number, :seat_type, :theater_id)
+                    """
+                ),
+                {
+                    "seat_row": seat["SeatRow"],
+                    "seat_number": seat["SeatNumber"],
+                    "seat_type": seat["SeatType"],
+                    "theater_id": theater_id,
+                },
+            )
+
+            seat_records.append(
+                {
+                    "SeatID": created_seat.lastrowid,
+                    "SeatRow": seat["SeatRow"],
+                    "SeatNumber": seat["SeatNumber"],
+                    "Price": seat["Price"],
+                }
+            )
+
+        booked_seat = None
+        if seat_records:
+            seat_conditions = []
+            seat_params = {"showtime_id": booking.ShowtimeID}
+
+            for index, seat in enumerate(seat_records):
+                seat_conditions.append(
+                    f"(s.SeatRow = :seat_row_{index} AND s.SeatNumber = :seat_number_{index})"
+                )
+                seat_params[f"seat_row_{index}"] = seat["SeatRow"]
+                seat_params[f"seat_number_{index}"] = seat["SeatNumber"]
+
+            booked_seat = db.execute(
+                text(
+                    f"""
+                    SELECT s.SeatRow, s.SeatNumber
+                    FROM Ticket t
+                    JOIN Booking b ON t.BookingID = b.BookingID
+                    JOIN Seat s ON t.SeatID = s.SeatID
+                    WHERE b.ShowtimeID = :showtime_id
+                      AND ({' OR '.join(seat_conditions)})
+                    LIMIT 1
+                    """
+                ),
+                seat_params,
+            ).mappings().first()
+
+        if booked_seat:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Seat {booked_seat['SeatRow']}{booked_seat['SeatNumber']} has already been booked",
+            )
+
+        booking_result = db.execute(
+            text(
+                """
+                INSERT INTO Booking (BookingStatus, BookingDate, TotalPrice, UID, ShowtimeID, PromotionID)
+                VALUES ('Confirmed', :booking_date, :total_price, :uid, :showtime_id, NULL)
+                """
+            ),
+            {
+                "booking_date": date.today(),
+                "total_price": total_price,
+                "uid": booking.UID,
+                "showtime_id": booking.ShowtimeID,
+            },
+        )
+
+        booking_id = booking_result.lastrowid
+
+        for seat in seat_records:
+            db.execute(
+                text(
+                    """
+                    INSERT INTO Ticket (Price, BookingID, SeatID)
+                    VALUES (:price, :booking_id, :seat_id)
+                    """
+                ),
+                {
+                    "price": seat["Price"],
+                    "booking_id": booking_id,
+                    "seat_id": seat["SeatID"],
+                },
+            )
+
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Booking creation failed: {str(exc)}")
+
+    created_booking = db.execute(
+        text(
+            """
+            SELECT BookingID, BookingDate, BookingStatus, TotalPrice, UID, ShowtimeID, PromotionID
+            FROM Booking
+            WHERE BookingID = :booking_id
+            """
+        ),
+        {"booking_id": booking_id},
+    ).mappings().first()
+
+    if not created_booking:
+        raise HTTPException(status_code=500, detail="Booking was created but could not be retrieved")
+
+    return created_booking
 
 @app.get("/api/bookings/{booking_id}", response_model=schemas.BookingResponse, tags=["User - Booking"])
 def get_booking(booking_id: int, db: Session = Depends(get_db)):
     """
     User Function: Get Booking Details
-    TODO: Database implement (SELECT * FROM Booking WHERE BookingID = booking_id)
     """
-    # MOCK DATA: Replace with real database query output
-    return {
-        "BookingID": booking_id,
-        "ShowtimeID": 888,
-        "UserID": 123,
-        "SeatID": 5001,
-        "PromotionID": None
-    }
+    booking = db.execute(
+        text(
+            """
+            SELECT BookingID, BookingDate, BookingStatus, TotalPrice, UID, ShowtimeID, PromotionID
+            FROM Booking
+            WHERE BookingID = :booking_id
+            """
+        ),
+        {"booking_id": booking_id},
+    ).mappings().first()
+
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    return booking
+
+
+@app.get("/api/users/{uid}/bookings", response_model=List[schemas.UserBookingHistoryResponse], tags=["User - Booking"])
+def get_user_bookings(uid: int, db: Session = Depends(get_db)):
+    """
+    User Function: Get all bookings for one user with ticket, seat, showtime, movie, theater, and branch details
+    """
+    user = db.execute(
+        text(
+            """
+            SELECT UID
+            FROM `User`
+            WHERE UID = :uid
+            """
+        ),
+        {"uid": uid},
+    ).mappings().first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                b.BookingID,
+                b.BookingDate,
+                b.BookingStatus,
+                b.TotalPrice,
+                b.UID,
+                b.ShowtimeID,
+                b.PromotionID,
+                m.MID,
+                m.MName,
+                s.ShowDate,
+                TIME_FORMAT(s.StartTime, '%H:%i') AS StartTime,
+                TIME_FORMAT(s.EndTime, '%H:%i') AS EndTime,
+                br.BID,
+                br.BName,
+                br.BLocation,
+                t.ThID,
+                t.ThNumber,
+                t.ThType,
+                tk.TicketID,
+                tk.SeatID,
+                tk.Price,
+                st.SeatRow,
+                st.SeatNumber,
+                r.ReviewID,
+                r.ReviewDate,
+                r.ReviewScore,
+                r.Comment
+            FROM Booking b
+            JOIN Showtime s ON b.ShowtimeID = s.ShowtimeID
+            JOIN Movie m ON s.MID = m.MID
+            JOIN Theater t ON s.ThID = t.ThID
+            JOIN Branch br ON t.BID = br.BID
+            JOIN Ticket tk ON b.BookingID = tk.BookingID
+            JOIN Seat st ON tk.SeatID = st.SeatID
+            LEFT JOIN Review r ON r.UID = b.UID AND r.MID = m.MID
+            WHERE b.UID = :uid
+            ORDER BY s.ShowDate DESC, s.StartTime DESC, b.BookingID DESC, st.SeatRow ASC, st.SeatNumber ASC
+            """
+        ),
+        {"uid": uid},
+    ).mappings().all()
+
+    bookings: dict[int, dict] = {}
+
+    for row in rows:
+        booking_id = row["BookingID"]
+
+        if booking_id not in bookings:
+            bookings[booking_id] = {
+                "BookingID": row["BookingID"],
+                "BookingDate": row["BookingDate"],
+                "BookingStatus": row["BookingStatus"],
+                "TotalPrice": row["TotalPrice"],
+                "UID": row["UID"],
+                "ShowtimeID": row["ShowtimeID"],
+                "PromotionID": row["PromotionID"],
+                "MID": row["MID"],
+                "MName": row["MName"],
+                "ShowDate": row["ShowDate"],
+                "StartTime": row["StartTime"],
+                "EndTime": row["EndTime"],
+                "BID": row["BID"],
+                "BName": row["BName"],
+                "BLocation": row["BLocation"],
+                "ThID": row["ThID"],
+                "ThNumber": row["ThNumber"],
+                "ThType": row["ThType"],
+                "Seats": [],
+                "Review": None,
+            }
+
+            if row["ReviewID"] is not None:
+                bookings[booking_id]["Review"] = {
+                    "ReviewID": row["ReviewID"],
+                    "ReviewDate": row["ReviewDate"],
+                    "ReviewScore": row["ReviewScore"],
+                    "Comment": row["Comment"],
+                }
+
+        bookings[booking_id]["Seats"].append(
+            {
+                "TicketID": row["TicketID"],
+                "SeatID": row["SeatID"],
+                "SeatRow": row["SeatRow"],
+                "SeatNumber": row["SeatNumber"],
+                "Price": row["Price"],
+            }
+        )
+
+    return list(bookings.values())
 
 @app.delete("/api/bookings/{booking_id}", tags=["User - Booking"], status_code=status.HTTP_204_NO_CONTENT)
 def delete_booking(booking_id: int, db: Session = Depends(get_db)):
@@ -737,45 +1135,181 @@ def get_tickets_by_booking(booking_id: int, db: Session = Depends(get_db)):
 @app.post("/api/reviews", response_model=schemas.ReviewResponse, tags=["User - Review"], status_code=status.HTTP_201_CREATED)
 def create_review(review: schemas.ReviewCreate, db: Session = Depends(get_db)):
     """
-    User Function: Create Review
-    TODO: Database implement (INSERT INTO Review -> db.commit)
+    User Function: Create Review and update movie average score
     """
-    # MOCK DATA: Replace with real database output
-    return {**review.model_dump(), "ReviewID": 3001}
+    user = db.execute(
+        text(
+            """
+            SELECT UID
+            FROM `User`
+            WHERE UID = :uid
+            """
+        ),
+        {"uid": review.UID},
+    ).mappings().first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    movie = db.execute(
+        text(
+            """
+            SELECT MID
+            FROM Movie
+            WHERE MID = :mid
+            """
+        ),
+        {"mid": review.MID},
+    ).mappings().first()
+
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    watched_booking = db.execute(
+        text(
+            """
+            SELECT b.BookingID
+            FROM Booking b
+            JOIN Showtime s ON b.ShowtimeID = s.ShowtimeID
+            WHERE b.UID = :uid
+              AND s.MID = :mid
+              AND TIMESTAMP(s.ShowDate, s.StartTime) < NOW()
+            LIMIT 1
+            """
+        ),
+        {
+            "uid": review.UID,
+            "mid": review.MID,
+        },
+    ).mappings().first()
+
+    if not watched_booking:
+        raise HTTPException(status_code=403, detail="You can review only watched movies")
+
+    existing_review = db.execute(
+        text(
+            """
+            SELECT ReviewID
+            FROM Review
+            WHERE UID = :uid
+              AND MID = :mid
+            LIMIT 1
+            """
+        ),
+        {
+            "uid": review.UID,
+            "mid": review.MID,
+        },
+    ).mappings().first()
+
+    if existing_review:
+        raise HTTPException(status_code=409, detail="You have already reviewed this movie")
+
+    try:
+        review_result = db.execute(
+            text(
+                """
+                INSERT INTO Review (ReviewDate, ReviewScore, Comment, UID, MID)
+                VALUES (:review_date, :review_score, :comment, :uid, :mid)
+                """
+            ),
+            {
+                "review_date": date.today(),
+                "review_score": review.ReviewScore,
+                "comment": review.Comment.strip() if review.Comment else None,
+                "uid": review.UID,
+                "mid": review.MID,
+            },
+        )
+
+        average_row = db.execute(
+            text(
+                """
+                SELECT ROUND(AVG(ReviewScore), 1) AS AverageScore
+                FROM Review
+                WHERE MID = :mid
+                """
+            ),
+            {"mid": review.MID},
+        ).mappings().first()
+
+        average_score = average_row["AverageScore"] if average_row and average_row["AverageScore"] is not None else 0
+
+        db.execute(
+            text(
+                """
+                UPDATE Movie
+                SET ScoreRating = :score_rating
+                WHERE MID = :mid
+                """
+            ),
+            {
+                "score_rating": average_score,
+                "mid": review.MID,
+            },
+        )
+
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Review creation failed: {str(exc)}")
+
+    created_review = db.execute(
+        text(
+            """
+            SELECT ReviewID, ReviewDate, ReviewScore, Comment, UID, MID
+            FROM Review
+            WHERE ReviewID = :review_id
+            """
+        ),
+        {"review_id": review_result.lastrowid},
+    ).mappings().first()
+
+    if not created_review:
+        raise HTTPException(status_code=500, detail="Review was created but could not be retrieved")
+
+    return created_review
 
 @app.get("/api/reviews/{movie_id}", response_model=List[schemas.ReviewResponse], tags=["User - Review"])
 def get_reviews_by_movie(movie_id: int, db: Session = Depends(get_db)):
     """
     User Function: Get Reviews by Movie
-    TODO: Database implement (SELECT * FROM Review WHERE MID = movie_id)
     """
-    # MOCK DATA: Replace with real database query output
-    return [
-        {
-            "ReviewID": 3001,
-            "UID": 123,
-            "MID": movie_id,
-            "ReviewScore": 5,
-            "Comment": "Amazing movie! Highly recommend."
-        }
-    ]
+    reviews = db.execute(
+        text(
+            """
+            SELECT ReviewID, ReviewDate, ReviewScore, Comment, UID, MID
+            FROM Review
+            WHERE MID = :movie_id
+            ORDER BY ReviewDate DESC, ReviewID DESC
+            """
+        ),
+        {"movie_id": movie_id},
+    ).mappings().all()
+
+    return reviews
 
 @app.get("/api/reviews/user/{user_id}", response_model=List[schemas.ReviewResponse], tags=["User - Review"])
 def get_reviews_by_user(user_id: int, db: Session = Depends(get_db)):
     """
     User Function: Get Reviews by User
-    TODO: Database implement (SELECT * FROM Review WHERE UID = user_id)
     """
-    # MOCK DATA: Replace with real database query output
-    return [
-        {
-            "ReviewID": 3001,
-            "UID": user_id,
-            "MID": 1,
-            "ReviewScore": 5,
-            "Comment": "Amazing movie! Highly recommend."
-        }
-    ]
+    reviews = db.execute(
+        text(
+            """
+            SELECT ReviewID, ReviewDate, ReviewScore, Comment, UID, MID
+            FROM Review
+            WHERE UID = :user_id
+            ORDER BY ReviewDate DESC, ReviewID DESC
+            """
+        ),
+        {"user_id": user_id},
+    ).mappings().all()
+
+    return reviews
 
 @app.delete("/api/reviews/{review_id}", tags=["User - Review"], status_code=status.HTTP_204_NO_CONTENT)
 def delete_review(review_id: int, db: Session = Depends(get_db)):

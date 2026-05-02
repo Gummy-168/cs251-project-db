@@ -2,57 +2,13 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { getMovieById, getSeatsByShowtimeId } from "@/services/api";
+import type { MovieDetail } from "@/types/movie";
+import type { SeatLayoutSeat } from "@/types/seat";
 
 type SeatStatus = "standard" | "premium" | "unavailable";
-
-type Seat = {
-  id: string;
-  row: string;
-  status: SeatStatus;
-};
-
-const seats: Seat[] = [
-  { id: "A1", row: "A", status: "unavailable" },
-  { id: "A2", row: "A", status: "unavailable" },
-  { id: "A3", row: "A", status: "unavailable" },
-  { id: "A4", row: "A", status: "unavailable" },
-  { id: "A5", row: "A", status: "unavailable" },
-  { id: "A6", row: "A", status: "unavailable" },
-  { id: "A7", row: "A", status: "unavailable" },
-  { id: "A8", row: "A", status: "unavailable" },
-
-  { id: "B1", row: "B", status: "unavailable" },
-  { id: "B2", row: "B", status: "unavailable" },
-  { id: "B3", row: "B", status: "unavailable" },
-  { id: "B4", row: "B", status: "unavailable" },
-  { id: "B5", row: "B", status: "unavailable" },
-  { id: "B6", row: "B", status: "unavailable" },
-  { id: "B7", row: "B", status: "unavailable" },
-  { id: "B8", row: "B", status: "unavailable" },
-
-  { id: "K1", row: "K", status: "premium" },
-  { id: "K2", row: "K", status: "premium" },
-  { id: "K3", row: "K", status: "premium" },
-  { id: "K4", row: "K", status: "premium" },
-  { id: "K5", row: "K", status: "premium" },
-  { id: "K6", row: "K", status: "premium" },
-  { id: "K7", row: "K", status: "premium" },
-  { id: "K8", row: "K", status: "premium" },
-
-  { id: "L1", row: "L", status: "unavailable" },
-  { id: "L2", row: "L", status: "premium" },
-  { id: "L3", row: "L", status: "unavailable" },
-  { id: "L4", row: "L", status: "premium" },
-  { id: "L5", row: "L", status: "premium" },
-  { id: "L6", row: "L", status: "premium" },
-  { id: "L7", row: "L", status: "premium" },
-  { id: "L8", row: "L", status: "premium" },
-];
-
-const rows = ["A", "B", "K", "L"];
-const STANDARD_PRICE = 200;
-const PREMIUM_PRICE = 250;
 
 function SeatIcon({
   status,
@@ -190,11 +146,51 @@ export default function StatePage() {
   const movieId = searchParams.get("movieId");
 
   const [code, setCode] = useState("");
+  const [movie, setMovie] = useState<MovieDetail | null>(null);
+  const [seats, setSeats] = useState<SeatLayoutSeat[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadSeatLayout() {
+      try {
+        if (!showtimeId) {
+          throw new Error("ไม่พบรหัสรอบฉาย");
+        }
+
+        setLoading(true);
+        setError(null);
+
+        const [seatData, movieData] = await Promise.all([
+          getSeatsByShowtimeId(showtimeId),
+          movieId ? getMovieById(movieId) : Promise.resolve(null),
+        ]);
+
+        setSeats(seatData);
+        setMovie(movieData);
+      } catch (err) {
+        setSeats([]);
+        setMovie(null);
+        setError(
+          err instanceof Error ? err.message : "ไม่สามารถโหลดผังที่นั่งได้"
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadSeatLayout();
+  }, [movieId, showtimeId]);
+
+  const rows = useMemo(
+    () => Array.from(new Set(seats.map((seat) => seat.row))),
+    [seats]
+  );
 
   const seatsById = useMemo(
     () => Object.fromEntries(seats.map((seat) => [seat.id, seat])),
-    []
+    [seats]
   );
 
   const selectedSeatData = useMemo(
@@ -202,9 +198,7 @@ export default function StatePage() {
     [selectedSeats, seatsById]
   );
 
-  const total = selectedSeatData.reduce((sum, seat) => {
-    return sum + (seat.status === "premium" ? PREMIUM_PRICE : STANDARD_PRICE);
-  }, 0);
+  const total = selectedSeatData.reduce((sum, seat) => sum + seat.price, 0);
 
   function toggleSeat(seatId: string) {
     const seat = seatsById[seatId];
@@ -227,7 +221,7 @@ export default function StatePage() {
     const params = new URLSearchParams({
       showtimeId,
       seatIds: selectedSeats.join(","),
-      total: String(total),
+      totalPrice: String(total),
     });
 
     if (movieId) {
@@ -276,190 +270,211 @@ export default function StatePage() {
           </Link>
         </nav>
 
-        <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <section className="relative min-h-[760px] rounded-[38px] bg-[#0E1C12] px-14 pb-10 pt-16 shadow-[inset_0_0_50px_rgba(78,189,90,0.05)]">
-            <div className="mx-auto mt-4 h-[8px] w-[78%] rounded-full bg-[#4EBD5A]/80 shadow-[0_0_28px_rgba(78,189,90,0.45)]" />
+        {loading && (
+          <div className="mt-6 rounded-[28px] bg-[#121F15] px-6 py-5 text-sm text-[#D4E9D2]/80">
+            กำลังโหลดผังที่นั่ง...
+          </div>
+        )}
 
-            <p className="mt-5 text-center text-[16px] font-semibold text-[#D4E9D2]">
-              หน้าจอ
-            </p>
+        {error && (
+          <div className="mt-6 rounded-[28px] border border-red-400/30 bg-red-950/30 px-6 py-5 text-sm text-red-100">
+            ไม่สามารถโหลดผังที่นั่งได้: {error}
+          </div>
+        )}
 
-            <div className="mx-auto mt-24 w-fit space-y-7">
-              {rows.map((row) => {
-                const rowSeats = seats.filter((seat) => seat.row === row);
+        {!loading && !error && (
+          <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <section className="relative min-h-[760px] rounded-[38px] bg-[#0E1C12] px-14 pb-10 pt-16 shadow-[inset_0_0_50px_rgba(78,189,90,0.05)]">
+              <div className="mx-auto mt-4 h-[8px] w-[78%] rounded-full bg-[#4EBD5A]/80 shadow-[0_0_28px_rgba(78,189,90,0.45)]" />
 
-                return (
-                  <div
-                    key={row}
-                    className="grid grid-cols-[30px_repeat(4,56px)_86px_repeat(4,56px)_30px] items-center gap-5"
-                  >
-                    <span className="text-[17px] font-semibold text-[#D4E9D2]">
-                      {row}
-                    </span>
-
-                    {rowSeats.slice(0, 4).map((seat) => (
-                      <SeatIcon
-                        key={seat.id}
-                        status={seat.status}
-                        selected={selectedSeats.includes(seat.id)}
-                        onClick={() => toggleSeat(seat.id)}
-                      />
-                    ))}
-
-                    <div />
-
-                    {rowSeats.slice(4, 8).map((seat) => (
-                      <SeatIcon
-                        key={seat.id}
-                        status={seat.status}
-                        selected={selectedSeats.includes(seat.id)}
-                        onClick={() => toggleSeat(seat.id)}
-                      />
-                    ))}
-
-                    <span className="text-[17px] font-semibold text-[#D4E9D2]">
-                      {row}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="absolute bottom-12 left-1/2 flex w-[88%] -translate-x-1/2 items-center justify-between rounded-full bg-[#17251A] px-12 py-5 text-[13px]">
-              <div className="flex items-center gap-3 text-[#D4E9D2]">
-                <SeatIcon status="standard" small />
-                <span>STANDARD ({STANDARD_PRICE}฿)</span>
-              </div>
-
-              <div className="flex items-center gap-3 text-[#FFD34E]">
-                <SeatIcon status="premium" small />
-                <span>PREMIUM ({PREMIUM_PRICE}฿)</span>
-              </div>
-
-              <div className="flex items-center gap-3 text-[#6FDE76]">
-                <SeatIcon status="standard" selected small />
-                <span>SELECTED</span>
-              </div>
-
-              <div className="flex items-center gap-3 text-[#D4E9D2]">
-                <SeatIcon status="unavailable" small />
-                <span>UNAVAILABLE</span>
-              </div>
-            </div>
-          </section>
-
-          <aside className="rounded-[38px] bg-[#121F15] px-8 py-9 shadow-[0_20px_60px_rgba(0,0,0,0.45),inset_0_0_40px_rgba(78,189,90,0.06)]">
-            <div>
-              <h2 className="text-[18px] font-bold text-[#FFD34E]">
-                สรุปการจอง
-              </h2>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.25em] text-[#D4E9D2]/75">
-                Emerald Cinema
+              <p className="mt-5 text-center text-[16px] font-semibold text-[#D4E9D2]">
+                หน้าจอ
               </p>
-            </div>
 
-            <div className="my-7 h-px bg-[#223125]" />
+              {seats.length === 0 ? (
+                <div className="mt-24 text-center text-sm text-[#D4E9D2]/70">
+                  ยังไม่มีข้อมูลผังที่นั่งสำหรับรอบฉายนี้
+                </div>
+              ) : (
+                <div className="mx-auto mt-24 w-fit space-y-7">
+                  {rows.map((row) => {
+                    const rowSeats = seats.filter((seat) => seat.row === row);
+                    const midpoint = Math.ceil(rowSeats.length / 2);
 
-            <div className="flex items-center gap-4">
-              <img
-                src="/image/jujutsu.jpg"
-                alt="Jujutsu Kaisen"
-                className="h-[140px] w-[96px] rounded-[28px] object-cover"
-              />
+                    return (
+                      <div
+                        key={row}
+                        className="grid grid-cols-[30px_repeat(4,56px)_86px_repeat(4,56px)_30px] items-center gap-5"
+                      >
+                        <span className="text-[17px] font-semibold text-[#D4E9D2]">
+                          {row}
+                        </span>
 
+                        {rowSeats.slice(0, midpoint).map((seat) => (
+                          <SeatIcon
+                            key={seat.id}
+                            status={seat.status}
+                            selected={selectedSeats.includes(seat.id)}
+                            onClick={() => toggleSeat(seat.id)}
+                          />
+                        ))}
+
+                        <div />
+
+                        {rowSeats.slice(midpoint).map((seat) => (
+                          <SeatIcon
+                            key={seat.id}
+                            status={seat.status}
+                            selected={selectedSeats.includes(seat.id)}
+                            onClick={() => toggleSeat(seat.id)}
+                          />
+                        ))}
+
+                        <span className="text-[17px] font-semibold text-[#D4E9D2]">
+                          {row}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="absolute bottom-12 left-1/2 flex w-[88%] -translate-x-1/2 items-center justify-between rounded-full bg-[#17251A] px-12 py-5 text-[13px]">
+                <div className="flex items-center gap-3 text-[#D4E9D2]">
+                  <SeatIcon status="standard" small />
+                  <span>STANDARD (200฿)</span>
+                </div>
+
+                <div className="flex items-center gap-3 text-[#FFD34E]">
+                  <SeatIcon status="premium" small />
+                  <span>PREMIUM (250฿)</span>
+                </div>
+
+                <div className="flex items-center gap-3 text-[#6FDE76]">
+                  <SeatIcon status="standard" selected small />
+                  <span>SELECTED</span>
+                </div>
+
+                <div className="flex items-center gap-3 text-[#D4E9D2]">
+                  <SeatIcon status="unavailable" small />
+                  <span>UNAVAILABLE</span>
+                </div>
+              </div>
+            </section>
+
+            <aside className="rounded-[38px] bg-[#121F15] px-8 py-9 shadow-[0_20px_60px_rgba(0,0,0,0.45),inset_0_0_40px_rgba(78,189,90,0.06)]">
               <div>
-                <h3 className="text-[20px] font-semibold text-white">
-                  Jujutsu Kaisen
-                </h3>
-
-                <div className="mt-3 space-y-2 text-[14px] text-[#D4E9D2]">
-                  <p>☆ EN/TH</p>
-                  <div className="flex items-center gap-2">
-                    <ClockIcon />
-                    <span>105 นาที</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 rounded-[28px] bg-[#3B463B] px-6 py-5">
-              <div className="flex items-center gap-3 text-[#6FDE76]">
-                <LocationIcon />
-                <span className="text-[15px] font-semibold text-[#D4E9D2]">
-                  Emerald Cineplex Rangsit
-                </span>
-              </div>
-
-              <div className="mt-5 flex items-end justify-between">
-                <div>
-                  <p className="text-[12px] uppercase tracking-[0.15em] text-[#D4E9D2]/65">
-                    Date & Time
-                  </p>
-                </div>
-                <p className="text-[16px] font-bold text-white">
-                  Showtime #{showtimeId ?? "-"}
+                <h2 className="text-[18px] font-bold text-[#FFD34E]">
+                  สรุปการจอง
+                </h2>
+                <p className="mt-1 text-[10px] uppercase tracking-[0.25em] text-[#D4E9D2]/75">
+                  Emerald Cinema
                 </p>
               </div>
-            </div>
 
-            <div className="mt-8 space-y-7">
-              <div className="flex items-center justify-between">
-                <span className="text-[15px] text-[#D4E9D2]/80">
-                  จำนวนที่นั่ง
-                </span>
-                <span className="text-[16px] font-bold text-[#6FDE76]">
-                  {selectedSeats.length}
-                </span>
+              <div className="my-7 h-px bg-[#223125]" />
+
+              <div className="flex items-center gap-4">
+                <img
+                  src={movie?.poster ?? "/image/jujutsu.jpg"}
+                  alt={movie?.title ?? "Movie poster"}
+                  className="h-[140px] w-[96px] rounded-[28px] object-cover"
+                />
+
+                <div>
+                  <h3 className="text-[20px] font-semibold text-white">
+                    {movie?.title ?? "กำลังโหลดภาพยนตร์"}
+                  </h3>
+
+                  <div className="mt-3 space-y-2 text-[14px] text-[#D4E9D2]">
+                    <p>☆ EN/TH</p>
+                    <div className="flex items-center gap-2">
+                      <ClockIcon />
+                      <span>{movie?.durationLabel ?? "-"}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-[15px] text-[#D4E9D2]/80">
-                  ที่นั่งที่เลือก
-                </span>
-                <span className="text-right text-[16px] font-bold text-[#6FDE76]">
-                  {selectedSeats.length > 0 ? selectedSeats.join(", ") : "-"}
-                </span>
+              <div className="mt-8 rounded-[28px] bg-[#3B463B] px-6 py-5">
+                <div className="flex items-center gap-3 text-[#6FDE76]">
+                  <LocationIcon />
+                  <span className="text-[15px] font-semibold text-[#D4E9D2]">
+                    Standard Theater Layout
+                  </span>
+                </div>
+
+                <div className="mt-5 flex items-end justify-between">
+                  <div>
+                    <p className="text-[12px] uppercase tracking-[0.15em] text-[#D4E9D2]/65">
+                      Date & Time
+                    </p>
+                  </div>
+                  <p className="text-[16px] font-bold text-white">
+                    Showtime #{showtimeId ?? "-"}
+                  </p>
+                </div>
               </div>
 
-              <div className="h-px bg-[#223125]" />
+              <div className="mt-8 space-y-7">
+                <div className="flex items-center justify-between">
+                  <span className="text-[15px] text-[#D4E9D2]/80">
+                    จำนวนที่นั่ง
+                  </span>
+                  <span className="text-[16px] font-bold text-[#6FDE76]">
+                    {selectedSeats.length}
+                  </span>
+                </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-[15px] text-[#D4E9D2]/80">
-                  จำนวนเงินทั้งหมด
-                </span>
-                <span className="text-[24px] font-bold text-[#FFD34E]">
-                  {total} ฿
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[15px] text-[#D4E9D2]/80">
+                    ที่นั่งที่เลือก
+                  </span>
+                  <span className="text-right text-[16px] font-bold text-[#6FDE76]">
+                    {selectedSeats.length > 0 ? selectedSeats.join(", ") : "-"}
+                  </span>
+                </div>
+
+                <div className="h-px bg-[#223125]" />
+
+                <div className="flex items-center justify-between">
+                  <span className="text-[15px] text-[#D4E9D2]/80">
+                    จำนวนเงินทั้งหมด
+                  </span>
+                  <span className="text-[24px] font-bold text-[#FFD34E]">
+                    {total} ฿
+                  </span>
+                </div>
               </div>
-            </div>
 
-            <div className="mt-8 flex items-center rounded-[10px] bg-[#4B5E4E] px-4 py-4">
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="Code..."
-                className="w-full bg-transparent text-[15px] text-white outline-none placeholder:text-[#D4E9D2]/45"
-              />
-              <button type="button" className="text-[#D4E9D2]/85">
-                <SendIcon />
+              <div className="mt-8 flex items-center rounded-[10px] bg-[#4B5E4E] px-4 py-4">
+                <input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="Code..."
+                  className="w-full bg-transparent text-[15px] text-white outline-none placeholder:text-[#D4E9D2]/45"
+                />
+                <button type="button" className="text-[#D4E9D2]/85">
+                  <SendIcon />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                disabled={selectedSeats.length === 0 || !showtimeId}
+                onClick={handlePurchase}
+                className={`mt-10 flex w-full items-center justify-center gap-3 rounded-full py-5 text-[18px] font-bold shadow-[0_12px_30px_rgba(111,222,118,0.35)] transition ${
+                  selectedSeats.length === 0 || !showtimeId
+                    ? "cursor-not-allowed bg-[#3f5742] text-[#b7c7b8] shadow-none"
+                    : "bg-[#6FDE76] text-[#061008] hover:bg-[#5ad764]"
+                }`}
+              >
+                <span>ซื้อตั๋ว</span>
+                <TicketIcon />
               </button>
-            </div>
-
-            <button
-              type="button"
-              disabled={selectedSeats.length === 0 || !showtimeId}
-              onClick={handlePurchase}
-              className={`mt-10 flex w-full items-center justify-center gap-3 rounded-full py-5 text-[18px] font-bold shadow-[0_12px_30px_rgba(111,222,118,0.35)] transition ${
-                selectedSeats.length === 0 || !showtimeId
-                  ? "cursor-not-allowed bg-[#3f5742] text-[#b7c7b8] shadow-none"
-                  : "bg-[#6FDE76] text-[#061008] hover:bg-[#5ad764]"
-              }`}
-            >
-              <span>ซื้อตั๋ว</span>
-              <TicketIcon />
-            </button>
-          </aside>
-        </div>
+            </aside>
+          </div>
+        )}
       </div>
     </main>
   );

@@ -1,4 +1,6 @@
 from pydantic import BaseModel, ConfigDict
+from decimal import Decimal
+from typing import Optional
 
 # Seat Schemas
 class SeatBase(BaseModel):
@@ -14,5 +16,6 @@ class SeatCreate(SeatBase):
 
 class SeatResponse(SeatBase):
     SeatID: int
+    Price: Optional[Decimal] = None
     model_config = ConfigDict(from_attributes=True)
 # \end of Seat Schemas

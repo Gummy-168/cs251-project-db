@@ -1,10 +1,10 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import date
 
 # Review Schemas
 class ReviewBase(BaseModel):
-    ReviewScore: int
+    ReviewScore: int = Field(ge=1, le=5)
     Comment: Optional[str] = None
     UID: int
     MID: int
