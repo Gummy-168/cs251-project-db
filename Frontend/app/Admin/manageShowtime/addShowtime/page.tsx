@@ -1,18 +1,83 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, CalendarDays, Clapperboard, Save } from 'lucide-react';
+import { createAdminShowtime } from '@/services/api';
 
 export default function AddShowtimePage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const selectedDate = searchParams.get('date');
+
+  const [movieInput, setMovieInput] = useState('');
+  const [branchInput, setBranchInput] = useState('RANGSIT');
+  const [theaterInput, setTheaterInput] = useState('1');
+  const [showtimeInput, setShowtimeInput] = useState('');
+  const [priceInput, setPriceInput] = useState('240');
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const isValidShowtime = useMemo(() => /^([01]\d|2[0-3]):([0-5]\d)$/.test(showtimeInput), [showtimeInput]);
+
+  async function handleSave(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const movieValue = movieInput.trim();
+    const branchValue = branchInput.trim();
+    const theaterValue = theaterInput.trim();
+    const priceNumber = Number(priceInput);
+
+    if (!movieValue) {
+      setError('กรุณาระบุชื่อหนังหรือ Movie ID');
+      return;
+    }
+
+    if (!branchValue) {
+      setError('กรุณาระบุสาขา');
+      return;
+    }
+
+    if (!theaterValue) {
+      setError('กรุณาระบุโรงภาพยนตร์');
+      return;
+    }
+
+    if (!isValidShowtime) {
+      setError('กรุณาระบุ Showtime เป็นรูปแบบเวลา HH:mm');
+      return;
+    }
+
+    if (!Number.isFinite(priceNumber) || priceNumber <= 0) {
+      setError('กรุณาระบุราคาให้ถูกต้อง');
+      return;
+    }
+
+    const showDate = selectedDate ?? new Date().toISOString().slice(0, 10);
+    setSaving(true);
+    setError(null);
+
+    try {
+      await createAdminShowtime({
+        MovieKeyword: movieValue,
+        Branch: branchValue,
+        Theater: theaterValue,
+        ShowDate: showDate,
+        StartTime: showtimeInput,
+        Price: priceNumber,
+      });
+      router.push('/Admin/manageShowtime');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ไม่สามารถบันทึกรอบฉายลงฐานข้อมูลได้');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="relative flex-1 overflow-y-auto bg-[radial-gradient(circle_at_bottom,_rgba(61,88,64,0.34),_rgba(25,39,28,1)_54%)] text-gray-100">
       <div className="mx-auto min-h-full w-full max-w-[1180px] px-6 pb-28 pt-8 md:px-10 lg:px-12">
-        {/* Back Button */}
         <Link
           href="/Admin/manageShowtime"
           className="inline-flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.18em] text-gray-300 transition hover:text-emerald-400"
@@ -21,7 +86,6 @@ export default function AddShowtimePage() {
           Back to manage showtime
         </Link>
 
-        {/* Header */}
         <div className="mx-auto mt-16 w-full max-w-[1120px]">
           <h1 className="text-4xl font-semibold tracking-tight text-emerald-500">
             เพิ่มรายละเอียดรอบฉาย
@@ -39,10 +103,8 @@ export default function AddShowtimePage() {
           ) : null}
         </div>
 
-        {/* Form Card */}
         <section className="mx-auto mt-10 w-full max-w-[1120px] rounded-[8px] border border-[#556953] bg-[#52634f]/92 p-5 shadow-[0_24px_55px_rgba(0,0,0,0.24)] md:p-7">
-          <form className="space-y-7">
-            {/* Movie Name */}
+          <form className="space-y-7" onSubmit={handleSave}>
             <label className="block space-y-3">
               <span className="text-sm font-bold uppercase tracking-[0.2em] text-emerald-400">
                 Name Movie (ชื่อหนัง)
@@ -52,13 +114,15 @@ export default function AddShowtimePage() {
                 <Clapperboard className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#95a191]" />
                 <input
                   type="text"
+                  value={movieInput}
+                  onChange={(event) => setMovieInput(event.target.value)}
                   placeholder="ระบุ Movie ID หรือ Movie Name"
                   className="h-12 w-full rounded-[4px] border border-[#6b7c68] bg-[#536550] pl-11 pr-4 text-sm text-gray-100 outline-none placeholder:text-[#a1ac9f] focus:border-emerald-500"
+                  required
                 />
               </div>
             </label>
 
-            {/* Branch + Theater */}
             <div className="grid gap-5 md:grid-cols-2">
               <label className="block space-y-3">
                 <span className="text-sm font-bold uppercase tracking-[0.2em] text-emerald-400">
@@ -67,8 +131,11 @@ export default function AddShowtimePage() {
 
                 <input
                   type="text"
+                  value={branchInput}
+                  onChange={(event) => setBranchInput(event.target.value)}
                   placeholder="RANGSIT"
                   className="h-12 w-full rounded-[4px] border border-[#6b7c68] bg-[#536550] px-4 text-sm text-gray-100 outline-none placeholder:text-[#a1ac9f] focus:border-emerald-500"
+                  required
                 />
               </label>
 
@@ -79,13 +146,15 @@ export default function AddShowtimePage() {
 
                 <input
                   type="text"
+                  value={theaterInput}
+                  onChange={(event) => setTheaterInput(event.target.value.replace(/[^0-9A-Za-z\s-]/g, ''))}
                   placeholder="1"
                   className="h-12 w-full rounded-[4px] border border-[#6b7c68] bg-[#536550] px-4 text-sm text-gray-100 outline-none placeholder:text-[#a1ac9f] focus:border-emerald-500"
+                  required
                 />
               </label>
             </div>
 
-            {/* Showtime + Price */}
             <div className="grid gap-5 md:grid-cols-2">
               <label className="block space-y-3">
                 <span className="text-sm font-bold uppercase tracking-[0.2em] text-emerald-400">
@@ -93,9 +162,12 @@ export default function AddShowtimePage() {
                 </span>
 
                 <input
-                  type="text"
-                  placeholder="-- : -- --"
+                  type="time"
+                  value={showtimeInput}
+                  onChange={(event) => setShowtimeInput(event.target.value)}
                   className="h-12 w-full rounded-[4px] border border-[#6b7c68] bg-[#536550] px-4 text-center text-sm tracking-[0.2em] text-gray-100 outline-none placeholder:text-[#a1ac9f] focus:border-emerald-500"
+                  step={60}
+                  required
                 />
               </label>
 
@@ -106,9 +178,14 @@ export default function AddShowtimePage() {
 
                 <div className="relative">
                   <input
-                    type="text"
+                    type="number"
+                    inputMode="decimal"
+                    min={1}
+                    value={priceInput}
+                    onChange={(event) => setPriceInput(event.target.value)}
                     placeholder="240"
                     className="h-12 w-full rounded-[4px] border border-[#6b7c68] bg-[#536550] px-4 pr-16 text-sm text-gray-100 outline-none placeholder:text-[#a1ac9f] focus:border-emerald-500"
+                    required
                   />
 
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[#d7ddd6]">
@@ -117,16 +194,23 @@ export default function AddShowtimePage() {
                 </div>
               </label>
             </div>
+
+            {error ? (
+              <p className="rounded-md border border-red-400/25 bg-red-950/30 px-4 py-3 text-sm text-red-100">{error}</p>
+            ) : null}
+
+            <div className="fixed bottom-6 right-6 z-20">
+              <button
+                type="submit"
+                disabled={saving}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#07110b] shadow-[0_14px_30px_rgba(16,185,129,0.25)] transition hover:bg-emerald-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-65"
+              >
+                <Save className="h-4 w-4" />
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
           </form>
         </section>
-      </div>
-
-      {/* Save Button */}
-      <div className="fixed bottom-6 right-6 z-20">
-        <button className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#07110b] shadow-[0_14px_30px_rgba(16,185,129,0.25)] transition hover:bg-emerald-300 active:scale-95">
-          <Save className="h-4 w-4" />
-          Save
-        </button>
       </div>
     </div>
   );

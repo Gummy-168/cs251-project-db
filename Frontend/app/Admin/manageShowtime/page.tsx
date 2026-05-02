@@ -9,6 +9,7 @@ type Showtime = {
   id: string;
   time: string;
   price: string;
+  showDate: string;
 };
 
 type Theater = {
@@ -22,6 +23,8 @@ type BranchSchedule = {
   theaters: Theater[];
 };
 
+const SHOWTIME_STORAGE_KEY = 'emerald_admin_showtimes';
+
 const initialScheduleData: BranchSchedule[] = [
   {
     branch: 'Rangsit',
@@ -30,14 +33,14 @@ const initialScheduleData: BranchSchedule[] = [
         id: 'Theater 1',
         type: 'DIGITAL 4K',
         showtimes: [
-          { id: 'rangsit-t1-2000', time: '20:00', price: '399.0' },
-          { id: 'rangsit-t1-2230', time: '22:30', price: '399.0' },
+          { id: 'rangsit-t1-2000', time: '20:00', price: '399.0', showDate: '2026-05-02' },
+          { id: 'rangsit-t1-2230', time: '22:30', price: '399.0', showDate: '2026-05-02' },
         ],
       },
       {
         id: 'Theater 2',
         type: 'IMAX LASER',
-        showtimes: [{ id: 'rangsit-t2-1500', time: '15:00', price: '450.0' }],
+        showtimes: [{ id: 'rangsit-t2-1500', time: '15:00', price: '450.0', showDate: '2026-05-02' }],
       },
     ],
   },
@@ -47,7 +50,7 @@ const initialScheduleData: BranchSchedule[] = [
       {
         id: 'Theater 10',
         type: 'EXECUTIVE SUITE',
-        showtimes: [{ id: 'silom-t10-1800', time: '18:00', price: '350.0' }],
+        showtimes: [{ id: 'silom-t10-1800', time: '18:00', price: '350.0', showDate: '2026-05-03' }],
       },
     ],
   },
@@ -59,8 +62,35 @@ export default function ManageShowtimePage() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [scheduleData, setScheduleData] = useState(initialScheduleData);
+  const effectiveDate = selectedDate || new Date().toISOString().slice(0, 10);
 
-  // Sync React state with the native Dialog API
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SHOWTIME_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+
+      const parsed = JSON.parse(raw) as BranchSchedule[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const today = new Date().toISOString().slice(0, 10);
+        const normalized = parsed.map((branch) => ({
+          ...branch,
+          theaters: branch.theaters.map((theater) => ({
+            ...theater,
+            showtimes: theater.showtimes.map((show) => ({
+              ...show,
+              showDate: show.showDate ?? today,
+            })),
+          })),
+        }));
+        setScheduleData(normalized);
+      }
+    } catch {
+      // Keep default fallback when local storage is invalid.
+    }
+  }, []);
+
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
@@ -73,8 +103,8 @@ export default function ManageShowtimePage() {
   }, [isModalOpen]);
 
   const handleDeleteShowtime = (showtimeId: string) => {
-    setScheduleData((currentSchedules) =>
-      currentSchedules
+    setScheduleData((currentSchedules) => {
+      const updated = currentSchedules
         .map((branch) => ({
           ...branch,
           theaters: branch.theaters
@@ -84,12 +114,27 @@ export default function ManageShowtimePage() {
             }))
             .filter((theater) => theater.showtimes.length > 0),
         }))
-        .filter((branch) => branch.theaters.length > 0),
-    );
+        .filter((branch) => branch.theaters.length > 0);
+
+      window.localStorage.setItem(SHOWTIME_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
+  const visibleScheduleData = scheduleData
+    .map((branch) => ({
+      ...branch,
+      theaters: branch.theaters
+        .map((theater) => ({
+          ...theater,
+          showtimes: theater.showtimes.filter((show) => show.showDate === effectiveDate),
+        }))
+        .filter((theater) => theater.showtimes.length > 0),
+    }))
+    .filter((branch) => branch.theaters.length > 0);
+
   const handleConfirmDate = () => {
-    const nextDate = selectedDate || new Date().toISOString().slice(0, 10);
+    const nextDate = effectiveDate;
     setIsModalOpen(false);
     router.push(`/Admin/manageShowtime/addShowtime?date=${encodeURIComponent(nextDate)}`);
   };
@@ -97,31 +142,26 @@ export default function ManageShowtimePage() {
   return (
     <>
       <div className="flex-1 overflow-y-auto p-10 flex flex-col">
-        {/* Header Title */}
         <h2 className="text-emerald-500 text-xs font-bold tracking-widest uppercase mb-6">
           Manage Showtime
         </h2>
 
-        {/* Search Bar */}
         <div className="relative mb-8">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-          <input 
-            type="text" 
-            placeholder="Search Movie ID / Movie Name" 
+          <input
+            type="text"
+            placeholder="Search Movie ID / Movie Name"
             className="w-full bg-[#1b2b20] text-white placeholder-gray-500 rounded-lg py-4 pl-12 pr-4 focus:outline-none focus:ring-1 focus:ring-emerald-500 border border-[#2d4634]"
           />
         </div>
 
-        {/* Date and Create Actions Row */}
         <div className="grid grid-cols-[2fr_1fr] gap-6 mb-12">
-          {/* Current Date Card */}
           <div className="bg-[#1b2b20] rounded-xl p-6 border border-[#2d4634] flex flex-col justify-center">
             <p className="text-emerald-500 text-sm font-semibold mb-1">กำหนดการวันฉาย</p>
-            <h3 className="text-4xl font-bold text-gray-100">10 กุมภาพันธ์ 2569</h3>
+            <h3 className="text-4xl font-bold text-gray-100">{effectiveDate}</h3>
           </div>
 
-          {/* Create New Showtime Button (Triggers Modal) */}
-          <button 
+          <button
             onClick={() => setIsModalOpen(true)}
             className="bg-emerald-400 hover:bg-emerald-300 transition-colors rounded-xl p-6 flex flex-col items-center justify-center text-[#0a100c] shadow-lg shadow-emerald-900/20 group w-full cursor-pointer"
           >
@@ -130,9 +170,14 @@ export default function ManageShowtimePage() {
           </button>
         </div>
 
-        {/* Branches and Theaters List */}
         <div className="flex flex-col gap-12">
-          {scheduleData.map((branch, branchIndex) => (
+          {visibleScheduleData.length === 0 ? (
+            <div className="rounded-xl border border-[#2d4634] bg-[#1b2b20] p-6 text-sm text-gray-300">
+              ยังไม่มีรอบฉายในวันที่เลือก
+            </div>
+          ) : null}
+
+          {visibleScheduleData.map((branch, branchIndex) => (
             <div key={branchIndex}>
               <h3 className="text-2xl font-bold text-white flex items-center mb-6">
                 <span className="w-1.5 h-7 bg-emerald-500 rounded-full mr-3"></span>
@@ -149,8 +194,8 @@ export default function ManageShowtimePage() {
 
                     <div className="p-6 flex flex-col gap-4">
                       {theater.showtimes.map((show) => (
-                        <div 
-                          key={show.id} 
+                        <div
+                          key={show.id}
                           className="flex items-center justify-between bg-[#111a14] border border-[#2d4634] rounded-lg p-4 hover:border-emerald-500/50 transition-colors"
                         >
                           <div className="flex items-center gap-8">
@@ -181,54 +226,52 @@ export default function ManageShowtimePage() {
         </div>
       </div>
 
-      {/* Floating Action Button */}
-      <Link 
+      <Link
         href={`/Admin/manageShowtime/addShowtime?date=${encodeURIComponent(
-          selectedDate || new Date().toISOString().slice(0, 10),
+          effectiveDate,
         )}`}
         className="absolute bottom-10 right-10 w-14 h-14 bg-emerald-400 hover:bg-emerald-300 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-900/50 transition-colors z-40"
       >
         <CalendarPlus className="w-7 h-7 text-[#0a100c]" />
       </Link>
 
-      <dialog 
+      <dialog
         ref={dialogRef}
         onClose={() => setIsModalOpen(false)}
         className="fixed inset-0 m-0 p-0 bg-transparent backdrop:bg-black/80 backdrop:backdrop-blur-sm focus:outline-none z-50 w-full h-full border-none max-w-full max-h-full overflow-hidden"
       >
-        {/* Centering Wrapper: This is the secret sauce */}
         <div className="flex items-center justify-center w-full h-full" onClick={() => setIsModalOpen(false)}>
-          <div 
+          <div
             className="bg-[#152219] border border-[#2d4634] rounded-2xl p-8 w-[400px] shadow-2xl relative"
-            onClick={(e) => e.stopPropagation()} // Prevents clicks inside from closing
+            onClick={(e) => e.stopPropagation()}
           >
-            <button 
+            <button
               onClick={() => setIsModalOpen(false)}
               className="absolute top-4 right-4 text-gray-500 hover:text-gray-300 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
-            
+
             <h3 className="text-emerald-400 text-xl font-bold mb-2">Select Date</h3>
             <p className="text-gray-400 text-sm mb-6">Choose a date to create a new showtime schedule.</p>
-            
-            <input 
-              type="date" 
+
+            <input
+              type="date"
               value={selectedDate}
               onChange={(event) => setSelectedDate(event.target.value)}
               className="w-full bg-[#0a100c] text-white border border-[#2d4634] rounded-lg p-3 mb-8 focus:outline-none focus:border-emerald-500"
               style={{ colorScheme: 'dark' }}
             />
-            
+
             <div className="flex justify-end gap-3">
-              <button 
+              <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="px-5 py-2.5 text-gray-400 hover:text-white font-semibold transition-colors"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 type="button"
                 onClick={handleConfirmDate}
                 className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-[#0a100c] font-bold rounded-lg transition-colors"

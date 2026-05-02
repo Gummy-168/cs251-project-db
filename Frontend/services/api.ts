@@ -7,7 +7,9 @@ import type {
   MovieDetailPerson,
 } from "@/types/movie";
 import type {
+  AdminShowtimeCreatePayload,
   BackendBookingReview,
+  BackendAdminShowtimeRecord,
   BackendMovieShowtimeDateGroup,
   BackendUserBookingHistory,
   BookingCreatePayload,
@@ -328,6 +330,15 @@ export async function updateAdminMovie(
 export async function deleteAdminMovie(movieId: string | number): Promise<void> {
   return apiFetch<void>(`/api/admin/movies/${movieId}`, {
     method: "DELETE",
+  });
+}
+
+export async function createAdminShowtime(
+  payload: AdminShowtimeCreatePayload
+): Promise<BackendAdminShowtimeRecord> {
+  return apiFetch<BackendAdminShowtimeRecord>("/api/admin/showtimes", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 

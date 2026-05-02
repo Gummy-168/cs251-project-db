@@ -162,3 +162,21 @@ export interface ReviewRecord {
   UID: number;
   MID: number;
 }
+
+export interface AdminShowtimeCreatePayload {
+  MID?: number;
+  MovieKeyword?: string;
+  Branch: string;
+  Theater: string;
+  ShowDate: string;
+  StartTime: string;
+  Price: number;
+}
+
+export interface BackendAdminShowtimeRecord {
+  ShowtimeID: number;
+  MID: number;
+  ShowDate: string;
+  StartTime: string;
+  Price?: number | string;
+}
