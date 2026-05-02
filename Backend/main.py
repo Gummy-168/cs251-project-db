@@ -1215,8 +1215,8 @@ def delete_promotion(promotion_id: int, db: Session = Depends(get_db)):
 
 # Admin Endpoints - Payment
 
-@app.get("/api/admin/payments/{payment_id}", response_model=List[schemas.PaymentResponse], tags=["Admin - Payment"])
-def get_all_payments(payment_id: int, db: Session = Depends(get_db)):
+@app.get("/api/admin/payments/{payment_id}", response_model=schemas.PaymentResponse, tags=["Admin - Payment"])
+def get_admin_payment(payment_id: int, db: Session = Depends(get_db)):
     """
     Admin Function: Get All Payments
     """
@@ -1232,7 +1232,7 @@ def get_all_payments(payment_id: int, db: Session = Depends(get_db)):
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
 
-    return [dict(payment)]
+    return dict(payment)
 
 
 @app.get("/api/admin/reports/trending", response_model=schemas.TrendingMovieReportResponse, tags=["Admin - Report"])
@@ -2015,25 +2015,52 @@ def delete_booking(booking_id: int, db: Session = Depends(get_db)):
 def create_payment(payment: schemas.PaymentCreate, db: Session = Depends(get_db)):
     """
     User Function: Create Payment
-    TODO: Database implement (INSERT INTO Payment -> db.commit)
     """
-    # MOCK DATA: Replace with real database output
-    return {**payment.model_dump(), "PaymentID": 5555}
+    ensure_record_exists(db, "Booking", "BookingID", payment.BookingID, "Booking not found")
+
+    result = db.execute(
+        text(
+            """
+            INSERT INTO `Payment` (Amount, PaymentStatus, PaymentDate, PaymentMethod, BookingID)
+            VALUES (:Amount, :PaymentStatus, :PaymentDate, :PaymentMethod, :BookingID)
+            """
+        ),
+        payment.model_dump(),
+    )
+    db.commit()
+
+    created_payment = fetch_one(
+        db,
+        """
+        SELECT PaymentID, Amount, PaymentStatus, PaymentDate, PaymentMethod, BookingID
+        FROM `Payment`
+        WHERE PaymentID = :payment_id
+        """,
+        {"payment_id": result.lastrowid},
+    )
+    if not created_payment:
+        raise HTTPException(status_code=500, detail="Payment was created but could not be retrieved")
+
+    return dict(created_payment)
 
 @app.get("/api/payments/{payment_id}", response_model=schemas.PaymentResponse, tags=["User - Payment"])
 def get_payment(payment_id: int, db: Session = Depends(get_db)):
     """
     User Function: Get Payment Details
-    TODO: Database implement (SELECT * FROM Payment WHERE PaymentID = payment_id)
     """
-    # MOCK DATA: Replace with real database query output
-    return {
-        "PaymentID": payment_id,
-        "BookingID": 7777,
-        "Amount": 250.00,
-        "PaymentMethod": "Credit Card",
-        "PaymentStatus": "Completed"
-    }
+    payment = fetch_one(
+        db,
+        """
+        SELECT PaymentID, Amount, PaymentStatus, PaymentDate, PaymentMethod, BookingID
+        FROM `Payment`
+        WHERE PaymentID = :payment_id
+        """,
+        {"payment_id": payment_id},
+    )
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    return dict(payment)
 
 
 #booking endpoints
