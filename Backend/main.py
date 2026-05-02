@@ -196,6 +196,53 @@ def delete_seat(seat_id: int, db: Session = Depends(get_db)):
     """
     return None
 
+# Admin Endpoints - Promotion
+
+@app.post("/api/admin/promotions", response_model=schemas.PromotionResponse, tags=["Admin - Promotion"], status_code=status.HTTP_201_CREATED)
+def create_promotion(promotion: schemas.PromotionCreate, db: Session = Depends(get_db)):
+    """
+    Admin Function: Add Promotion
+    TODO: Database implement
+    """
+    # MOCK DATA: Replace with real database output
+    return {**promotion.model_dump(), "PromotionID": 4001}
+
+@app.put("/api/admin/promotions/{promotion_id}", response_model=schemas.PromotionResponse, tags=["Admin - Promotion"])
+def update_promotion(promotion_id: int, promotion: schemas.PromotionUpdate, db: Session = Depends(get_db)):
+    """
+    Admin Function: Edit Promotion
+    TODO: Database implement
+    """
+    # MOCK DATA: Replace with real database output
+    return {**promotion.model_dump(), "PromotionID": promotion_id}
+
+@app.delete("/api/admin/promotions/{promotion_id}", tags=["Admin - Promotion"], status_code=status.HTTP_204_NO_CONTENT)
+def delete_promotion(promotion_id: int, db: Session = Depends(get_db)):
+    """
+    Admin Function: Delete Promotion
+    TODO: Database implement
+    """
+    return None
+
+# Admin Endpoints - Payment
+
+@app.get("/api/admin/payments/{payment_id}", response_model=List[schemas.PaymentResponse], tags=["Admin - Payment"])
+def get_all_payments(payment_id: int, db: Session = Depends(get_db)):
+    """
+    Admin Function: Get All Payments
+    TODO: Database implement (SELECT * FROM Payment)
+    """
+    # MOCK DATA: Replace with real database query output
+    return [
+        {
+            "PaymentID": payment_id,
+            "BookingID": 7777,
+            "Amount": 250.00,
+            "PaymentMethod": "Credit Card",
+            "PaymentStatus": "Completed"
+        }
+    ]
+
 # user endpoints
 
 @app.get("/api/movies", response_model=List[schemas.MovieResponse], tags=["User - Cinema"])
@@ -234,3 +281,201 @@ def check_available_seats(showtime_id: int, db: Session = Depends(get_db)):
             "ThID": 101
         }
     ]
+
+# branch endpoints
+
+@app.get("/api/branches/{branch_id}", response_model=List[schemas.BranchResponse], tags=["User - Branch"])
+def search_branches(branch_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Get Branches
+    TODO: Database implement (SELECT * FROM Branch)
+    """
+    # MOCK DATA: Replace with real database query output
+    return [
+        {
+            "BranchID": branch_id,
+            "BranchName": "Cineplex Downtown",
+            "BranchLocation": "123 Main St, City"
+        }
+    ]
+
+#booking endpoints
+
+@app.post("/api/bookings", response_model=schemas.BookingResponse, tags=["User - Booking"], status_code=status.HTTP_201_CREATED)
+def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)):
+    """
+    User Function: Create Booking
+    TODO: Database implement (INSERT INTO Booking -> db.commit)
+    """
+    # MOCK DATA: Replace with real database output
+    return {**booking.model_dump(), "BookingID": 7777}
+
+@app.get("/api/bookings/{booking_id}", response_model=schemas.BookingResponse, tags=["User - Booking"])
+def get_booking(booking_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Get Booking Details
+    TODO: Database implement (SELECT * FROM Booking WHERE BookingID = booking_id)
+    """
+    # MOCK DATA: Replace with real database query output
+    return {
+        "BookingID": booking_id,
+        "ShowtimeID": 888,
+        "UserID": 123,
+        "SeatID": 5001,
+        "PromotionID": None
+    }
+
+@app.delete("/api/bookings/{booking_id}", tags=["User - Booking"], status_code=status.HTTP_204_NO_CONTENT)
+def delete_booking(booking_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Delete Booking
+    TODO: Database implement (DELETE FROM Booking WHERE BookingID = booking_id)
+    """
+    return None
+
+
+# payment endpoints
+
+@app.post("/api/payments", response_model=schemas.PaymentResponse, tags=["User - Payment"], status_code=status.HTTP_201_CREATED)
+def create_payment(payment: schemas.PaymentCreate, db: Session = Depends(get_db)):
+    """
+    User Function: Create Payment
+    TODO: Database implement (INSERT INTO Payment -> db.commit)
+    """
+    # MOCK DATA: Replace with real database output
+    return {**payment.model_dump(), "PaymentID": 5555}
+
+@app.get("/api/payments/{payment_id}", response_model=schemas.PaymentResponse, tags=["User - Payment"])
+def get_payment(payment_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Get Payment Details
+    TODO: Database implement (SELECT * FROM Payment WHERE PaymentID = payment_id)
+    """
+    # MOCK DATA: Replace with real database query output
+    return {
+        "PaymentID": payment_id,
+        "BookingID": 7777,
+        "Amount": 250.00,
+        "PaymentMethod": "Credit Card",
+        "PaymentStatus": "Completed"
+    }
+
+
+#booking endpoints
+
+@app.get("/api/tickets/{booking_id}", response_model=List[schemas.TicketResponse], tags=["User - Ticket"])
+def get_tickets_by_booking(booking_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Get Tickets by Booking
+    TODO: Database implement (SELECT * FROM Ticket WHERE BookingID = booking_id)
+    """
+    # MOCK DATA: Replace with real database query output
+    return [
+        {
+            "TicketID": 9001,
+            "SeatID": 5001,
+            "BookingID": booking_id,
+            "Price": 250.00
+        }
+    ]
+
+
+# review endpoints
+
+@app.post("/api/reviews", response_model=schemas.ReviewResponse, tags=["User - Review"], status_code=status.HTTP_201_CREATED)
+def create_review(review: schemas.ReviewCreate, db: Session = Depends(get_db)):
+    """
+    User Function: Create Review
+    TODO: Database implement (INSERT INTO Review -> db.commit)
+    """
+    # MOCK DATA: Replace with real database output
+    return {**review.model_dump(), "ReviewID": 3001}
+
+@app.get("/api/reviews/{movie_id}", response_model=List[schemas.ReviewResponse], tags=["User - Review"])
+def get_reviews_by_movie(movie_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Get Reviews by Movie
+    TODO: Database implement (SELECT * FROM Review WHERE MID = movie_id)
+    """
+    # MOCK DATA: Replace with real database query output
+    return [
+        {
+            "ReviewID": 3001,
+            "UID": 123,
+            "MID": movie_id,
+            "ReviewScore": 5,
+            "Comment": "Amazing movie! Highly recommend."
+        }
+    ]
+
+@app.get("/api/reviews/user/{user_id}", response_model=List[schemas.ReviewResponse], tags=["User - Review"])
+def get_reviews_by_user(user_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Get Reviews by User
+    TODO: Database implement (SELECT * FROM Review WHERE UID = user_id)
+    """
+    # MOCK DATA: Replace with real database query output
+    return [
+        {
+            "ReviewID": 3001,
+            "UID": user_id,
+            "MID": 1,
+            "ReviewScore": 5,
+            "Comment": "Amazing movie! Highly recommend."
+        }
+    ]
+
+@app.delete("/api/reviews/{review_id}", tags=["User - Review"], status_code=status.HTTP_204_NO_CONTENT)
+def delete_review(review_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Delete Review
+    TODO: Database implement (DELETE FROM Review WHERE ReviewID = review_id)
+    """
+    return None
+
+
+# promotion endpoints
+
+@app.get("/api/promotions/{promotion_id}", response_model=List[schemas.PromotionResponse], tags=["User - Promotion"])
+def get_promotions(promotion_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Get Promotions
+    TODO: Database implement (SELECT * FROM Promotion)
+    """
+    # MOCK DATA: Replace with real database query output
+    return [
+        {
+            "PromotionID": promotion_id,
+            "PromotionName": "Summer Sale",
+            "DiscountType": "Percentage",
+            "DiscountValue": 10.00,
+            "StartDate": "2026-06-01",
+            "EndDate": "2026-08-31",
+            "AID": 1
+        }
+    ]
+
+@app.post("/api/promotions/apply", response_model=schemas.PromotionResponse, tags=["User - Promotion"])
+def apply_promotion(promotion_id: int, booking_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Apply Promotion to Booking
+    TODO: Database implement (UPDATE Booking SET PromotionID = promotion_id WHERE BookingID = booking_id)
+    """
+    # MOCK DATA: Replace with real database query output
+    return {
+        "PromotionID": promotion_id,
+        "PromotionName": "Summer Sale",
+        "DiscountType": "Percentage",
+        "DiscountValue": 10.00,
+        "StartDate": "2026-06-01",
+        "EndDate": "2026-08-31",
+        "AID": 1
+    }
+
+@app.post("/api/promotions/remove", tags=["User - Promotion"], status_code=status.HTTP_204_NO_CONTENT)
+def remove_promotion(booking_id: int, db: Session = Depends(get_db)):
+    """
+    User Function: Remove Promotion from Booking
+    TODO: Database implement (UPDATE Booking SET PromotionID = NULL WHERE BookingID = booking_id)
+    """
+    return None
