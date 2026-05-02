@@ -37,26 +37,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const allData = JSON.parse(localStorage.getItem('emerald_showtimes')) || [];
         let filtered = allData.filter(item => item.date === dateId);
 
-        // Mock Data สำหรับ 10 ก.พ. (กรณีไม่มีข้อมูล)
-        if (dateId === '2026-02-10' && filtered.length === 0) {
-            filtered = [
-                { id: 'm1', branch: 'RANGSIT', theater: '1', time: '14:30', price: '450.0', date: '2026-02-10', format: 'DIGITAL 4K' },
-                { id: 'm2', branch: 'SILOM', theater: '10', time: '18:00', price: '350.0', date: '2026-02-10', format: 'EXECUTIVE SUITE' },
-                { id: 'm3', branch: 'SILOM', theater: '10', time: '21:30', price: '350.0', date: '2026-02-10', format: 'EXECUTIVE SUITE' }
-            ];
-        }
-
         if (filtered.length === 0) {
             display.innerHTML = `<div style="text-align:center; padding:50px; color:gray;">ไม่มีรอบฉายสำหรับวันที่เลือก</div>`;
             return;
         }
 
-        // Grouping: Branch -> Format -> Theater
+        // จัดกลุ่มข้อมูลตาม: สาขา -> รูปแบบฉาย -> เลขโรง
         const groupedData = {};
         filtered.forEach(item => {
-            const branch = item.branch;
+            const branch = item.branch || "Unknown Branch";
             const format = item.format || 'DIGITAL 2D';
-            const theater = item.theater;
+            const theater = item.theater || "1";
 
             if (!groupedData[branch]) groupedData[branch] = {};
             if (!groupedData[branch][format]) groupedData[branch][format] = {};
@@ -72,12 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (const theaterNo in groupedData[branchName][formatName]) {
                     const showtimes = groupedData[branchName][formatName][theaterNo];
                     
-                    // --- ส่วนที่แก้ไข: การเรียงลำดับ (Time & Price) ---
-                    showtimes.sort((a, b) => {
-                        const timeComp = a.time.localeCompare(b.time);
-                        if (timeComp !== 0) return timeComp;
-                        return parseFloat(a.price) - parseFloat(b.price);
-                    });
+                    // เรียงเวลา (เช้าไปดึก)
+                    showtimes.sort((a, b) => a.time.localeCompare(b.time));
 
                     branchHtml += `
                         <div class="theater-card">
@@ -89,11 +76,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     showtimes.forEach(item => {
                         branchHtml += `
-                            <div class="showtime-item">
+                            <div class="showtime-item" style="display: flex; align-items: center; gap: 15px;">
                                 <div class="time-box highlight">${item.time}</div>
-                                <div class="price-info">
-                                    <span class="price-label">PRICE</span>
-                                    <span class="price-value">${parseFloat(item.price).toLocaleString()} บาท</span>
+                                <div class="movie-info" style="flex: 1;">
+                                    <div class="movie-title" style="font-weight: 600; color: #fff;">${item.movieName || 'ไม่ระบุชื่อหนัง'}</div>
+                                    <div class="price-value" style="font-size: 0.8rem; color: #4ade80;">${parseFloat(item.price).toLocaleString()} บาท</div>
                                 </div>
                                 <button class="delete-btn" onclick="deleteItem('${item.id}')">🗑️</button>
                             </div>`;
@@ -104,6 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
             branchHtml += `</div>`;
             display.insertAdjacentHTML('beforeend', branchHtml);
         }
+        
+        // เรียกใช้ฟังก์ชันค้นหาเผื่อกรณีที่มีตัวอักษรค้างอยู่ในช่อง Search
+        filterMovies();
     };
 
     // --- แก้ไขจุดที่ 1: ปุ่ม FAB (มุมขวาล่าง) ให้วาร์ปไปหน้าเพิ่มทันที ---
@@ -150,7 +140,30 @@ document.addEventListener('DOMContentLoaded', () => {
             renderShowtimeList(currentSelectedDateId);
         }
     };
+    // ฟังก์ชันสำหรับค้นหาหนัง
+    window.filterMovies = () => {
+        const searchTerm = document.getElementById('movieSearchInput').value.toLowerCase();
+        const movieItems = document.querySelectorAll('.showtime-item');
+        const theaterCards = document.querySelectorAll('.theater-card');
 
+        movieItems.forEach(item => {
+            // ดึงชื่อหนังมาตรวจสอบ (เราจะเพิ่ม class 'movie-title' ในขั้นตอนถัดไป)
+            const movieTitleNode = item.querySelector('.movie-title');
+            const movieName = movieTitleNode ? movieTitleNode.innerText.toLowerCase() : "";
+            
+            if (movieName.includes(searchTerm)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        // ซ่อนการ์ดโรง (Theater Card) หากไม่มีหนังที่ตรงเงื่อนไขแสดงอยู่เลย
+        theaterCards.forEach(card => {
+            const visibleItems = card.querySelectorAll('.showtime-item[style*="display: flex"]');
+            card.style.display = visibleItems.length > 0 ? 'block' : 'none';
+        });
+    };
     renderDateCards();
     renderShowtimeList(currentSelectedDateId);
 });

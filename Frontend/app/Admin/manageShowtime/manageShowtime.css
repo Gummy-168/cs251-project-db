@@ -366,3 +366,33 @@ nav {
     margin: 0.5rem 0 0 0;
     font-size: 1.5rem; /* ลดขนาดลงเล็กน้อยเพื่อให้ใส่ได้หลายใบ */
 }
+
+.search-bar {
+    background: var(--input-bg);
+    padding: 0.8rem 1.5rem;
+    border-radius: 30px; /* ให้ดูโค้งมนตามรูป */
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 500px;
+}
+
+.search-icon {
+    margin-right: 10px;
+    color: var(--text-gray);
+}
+
+.search-bar input {
+    background: none;
+    border: none;
+    color: white;
+    width: 100%;
+    outline: none;
+    font-size: 0.9rem;
+}
+
+/* ปรับแต่ง movie-info เพิ่มเติม (ถ้าต้องการ) */
+.movie-title {
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
