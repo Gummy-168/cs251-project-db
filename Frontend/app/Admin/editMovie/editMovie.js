@@ -96,14 +96,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    const logoutBtn = document.querySelector('.logout-btn');
-    if (logoutBtn) {
-        logoutBtn.onclick = () => { // ใช้ .onclick แทนเพื่อความชัวร์
-            if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
-                // จากรูปโครงสร้างโฟลเดอร์ของคุณ ต้องถอยออก 3 ระดับครับ
-                // 1. ออกจาก editMovie -> 2. ออกจาก Admin -> 3. ออกจาก app
-                window.location.href = '../login/login.html'
-            }
-        };
-    }
 });
+// --- ส่วนจัดการปุ่ม Log Out ที่ท้ายไฟล์ editMovie.js ---
+const logoutBtn = document.querySelector('.logout-btn');
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', (e) => {
+        // ป้องกัน default action
+        e.preventDefault(); 
+        
+        if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
+            // ถ้ากดตกลง ให้เปลี่ยนหน้าไปหน้า login
+            window.location.href = '../login/login.html';
+        } 
+        // ถ้ากด Cancel หน้าจะอยู่ที่เดิม ไม่ดีดออกไปไหน
+    });
+}

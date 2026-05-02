@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emerald Cinema - Manage Showtime</title>
+    <link rel="stylesheet" href="manageShowtime.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="dashboard-body">
+    <div class="sidebar">
+        <div class="logo">
+            <h1>EMERALD CINEMA</h1>
+            <span>PROJECTION BOOTH V1.0</span>
+        </div>
+        <nav>
+            <div class="nav-item">REPORT</div>
+            <div class="nav-item">EVENT HANDLING</div>
+            <div class="nav-item active">MANAGE SHOWTIME</div>
+            <div class="nav-item" onclick="location.href='../editMovie/editMovie.html'" style="cursor: pointer;">EDIT MOVIE</div>
+        </nav>
+        <button class="logout-btn">LOG OUT</button>
+    </div>
+
+    <main class="content">
+        <header class="content-header">
+            <div class="search-bar">
+                <span class="search-icon">🔍</span>
+                <input type="text" placeholder="Search Movie ID / Movie Name">
+            </div>
+        </header>
+
+        <section class="showtime-controls">
+            <div class="date-display">
+                <span class="label">กำหนดการวันฉาย</span>
+                <h2>10 กุมภาพันธ์ 2569</h2>
+            </div>
+            <button class="create-btn">
+                <span class="plus-icon">+</span>
+                Create New Showtime
+            </button>
+        </section>
+
+        <div class="location-group">
+            <h2 class="location-title">Rangsit</h2>
+            
+            <div class="theater-card">
+                <div class="theater-header">
+                    <span>Theater 1</span>
+                    <span class="format">DIGITAL 4K</span>
+                </div>
+                <div class="showtime-list">
+                    <div class="showtime-item">
+                        <div class="time-box">20:00</div>
+                        <div class="price-info">
+                            <span class="price-label">PRICE</span>
+                            <span class="price-value">399.0 บาท</span>
+                        </div>
+                        <button class="delete-btn">🗑️</button>
+                    </div>
+                    <div class="showtime-item">
+                        <div class="time-box">22:30</div>
+                        <div class="price-info">
+                            <span class="price-label">PRICE</span>
+                            <span class="price-value">399.0 บาท</span>
+                        </div>
+                        <button class="delete-btn">🗑️</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="theater-card">
+                <div class="theater-header">
+                    <span>Theater 2</span>
+                    <span class="format">IMAX LASER</span>
+                </div>
+                <div class="showtime-list">
+                    <div class="showtime-item">
+                        <div class="time-box highlight">15:00</div>
+                        <div class="price-info">
+                            <span class="price-label">PRICE</span>
+                            <span class="price-value">450.0 บาท</span>
+                        </div>
+                        <button class="delete-btn">🗑️</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="location-group">
+            <h2 class="location-title">Silom</h2>
+            <div class="theater-card">
+                <div class="theater-header">
+                    <span>Theater 10</span>
+                    <span class="format">EXECUTIVE SUITE</span>
+                </div>
+                <div class="showtime-list">
+                    <div class="showtime-item">
+                        <div class="time-box highlight">18:00</div>
+                        <div class="price-info">
+                            <span class="price-label">PRICE</span>
+                            <span class="price-value">350.0 บาท</span>
+                        </div>
+                        <button class="delete-btn">🗑️</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="fab-calendar-btn">📅<span>+</span></button>
+    </main>
+
+    <script src="manageShowtime.js"></script>
+</body>
+</html>

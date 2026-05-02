@@ -1,0 +1,230 @@
+:root {
+    --bg-dark: #121412;
+    --sidebar-bg: #1a1c1a;
+    --card-bg: #1e211e;
+    --primary-green: #4ade80;
+    --text-gray: #9ca3af;
+    --input-bg: #2d312d;
+}
+
+body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-dark);
+    color: white;
+    display: flex;
+    height: 100vh;
+}
+
+/* Sidebar Styling (Same as editMovie) */
+.sidebar {
+    width: 260px;
+    background-color: var(--sidebar-bg);
+    padding: 2rem 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.logo h1 {
+    font-family: 'Cinzel', serif;
+    color: var(--primary-green);
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.logo span {
+    font-size: 0.7rem;
+    color: var(--text-gray);
+}
+
+nav {
+    margin-top: 3rem;
+    flex-grow: 1;
+}
+
+.nav-item {
+    padding: 1rem;
+    color: var(--text-gray);
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.3s;
+}
+
+.nav-item.active {
+    color: var(--primary-green);
+    background: rgba(74, 222, 128, 0.1);
+    border-right: 4px solid var(--primary-green);
+}
+
+.nav-item:hover {
+    color: #ccc;
+    background: #2E372F;
+}
+
+.logout-btn {
+    background: #333;
+    color: white;
+    border: none;
+    padding: 0.8rem;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+/* Main Content */
+.content {
+    flex-grow: 1;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+.search-bar {
+    background: var(--input-bg);
+    border-radius: 8px;
+    padding: 0.8rem 1.2rem;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 800px;
+}
+
+.search-bar input {
+    background: transparent;
+    border: none;
+    color: white;
+    margin-left: 10px;
+    width: 100%;
+    outline: none;
+}
+
+/* Showtime Controls */
+.showtime-controls {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.date-display {
+    background: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 12px;
+    flex: 2;
+}
+
+.date-display .label {
+    color: var(--primary-green);
+    font-size: 0.9rem;
+}
+
+.date-display h2 {
+    margin: 0.5rem 0 0 0;
+    font-size: 2.2rem;
+}
+
+.create-btn {
+    background: var(--primary-green);
+    color: #121412;
+    border: none;
+    border-radius: 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.plus-icon {
+    font-size: 1.5rem;
+    border: 2px solid #121412;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    margin-bottom: 5px;
+}
+
+/* Location & Theater Cards */
+.location-title {
+    margin-top: 2.5rem;
+    padding-left: 10px;
+    border-left: 4px solid var(--primary-green);
+}
+
+.theater-card {
+    background: var(--card-bg);
+    margin-top: 1rem;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.theater-header {
+    background: rgba(255,255,255,0.05);
+    padding: 0.8rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: var(--text-gray);
+}
+
+.format { font-weight: bold; }
+
+.showtime-list { padding: 1rem 1.5rem; }
+
+.showtime-item {
+    display: flex;
+    align-items: center;
+    background: rgba(0,0,0,0.2);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.time-box {
+    border: 1px solid var(--primary-green);
+    color: var(--primary-green);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-weight: bold;
+    min-width: 60px;
+    text-align: center;
+}
+
+.time-box.highlight {
+    background: rgba(74, 222, 128, 0.1);
+}
+
+.price-info {
+    margin-left: 20px;
+    flex-grow: 1;
+}
+
+.price-label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-gray);
+}
+
+.price-value { font-weight: 500; }
+
+.delete-btn {
+    background: transparent;
+    border: none;
+    color: #f87171;
+    cursor: pointer;
+    font-size: 1.2rem;
+}
+
+.fab-calendar-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    background: var(--primary-green);
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
