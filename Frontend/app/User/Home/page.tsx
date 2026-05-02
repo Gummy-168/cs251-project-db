@@ -176,9 +176,12 @@ export default function HomePage() {
 
                   <h3 className="mb-4 text-base font-black">{movie.title}</h3>
 
-                  <button className="w-full rounded-full bg-[#63e86f] py-4 text-sm font-black text-black transition hover:bg-[#4ebd5a]">
+                  <Link
+                    href="/User/Movies"
+                    className="flex w-full items-center justify-center rounded-full bg-[#63e86f] py-4 text-sm font-black text-black transition hover:bg-[#4ebd5a]"
+                  >
                     จองตั๋ว
-                  </button>
+                  </Link>
                 </article>
               ))}
             </div>

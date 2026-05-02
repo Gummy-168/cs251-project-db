@@ -227,6 +227,7 @@ export default function StatePage() {
     const params = new URLSearchParams({
       showtimeId,
       seatIds: selectedSeats.join(","),
+      total: String(total),
     });
 
     if (movieId) {

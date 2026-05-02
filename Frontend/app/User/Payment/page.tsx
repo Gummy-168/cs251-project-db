@@ -1,8 +1,33 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
 export default function PaymentPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const showtimeId = searchParams.get("showtimeId");
+  const seatIdsRaw = searchParams.get("seatIds") ?? "";
+  const totalRaw = searchParams.get("total");
+
+  const seatIds = useMemo(
+    () =>
+      seatIdsRaw
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    [seatIdsRaw]
+  );
+
+  const total = useMemo(() => {
+    const parsed = Number(totalRaw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  }, [totalRaw]);
+
+  const canConfirmPayment = Boolean(showtimeId) && seatIds.length > 0 && total > 0;
+
   return (
     <main className="min-h-screen w-full bg-[#06160a] text-white">
       {/* Navbar */}
@@ -12,26 +37,26 @@ export default function PaymentPage() {
         </h1>
 
         <div className="flex gap-10 text-sm text-gray-200">
-          <a href="/User/Home" className="hover:text-[#63e86f]">
+          <Link href="/User/Home" className="hover:text-[#63e86f]">
             หน้าหลัก
-          </a>
-          <a href="#" className="hover:text-[#63e86f]">
+          </Link>
+          <Link href="/User/Movies" className="hover:text-[#63e86f]">
             ภาพยนตร์
-          </a>
-          <a href="#" className="hover:text-[#63e86f]">
+          </Link>
+          <Link href="/User/Promotion" className="hover:text-[#63e86f]">
             โปรโมชั่น
-          </a>
-          <a href="#" className="hover:text-[#63e86f]">
+          </Link>
+          <Link href="/User/Ticket" className="hover:text-[#63e86f]">
             ตั๋วของฉัน
-          </a>
+          </Link>
         </div>
 
-        <a
-  href="/User/Profile"
-  className="ml-auto flex h-7 w-7 items-center justify-center rounded-full border border-[#63e86f] text-sm text-[#63e86f] transition hover:bg-[#63e86f] hover:text-[#06160a]"
->
-  ◎
-</a>
+        <Link
+          href="/User/Profile"
+          className="ml-auto flex h-7 w-7 items-center justify-center rounded-full border border-[#63e86f] text-sm text-[#63e86f] transition hover:bg-[#63e86f] hover:text-[#06160a]"
+        >
+          ◎
+        </Link>
       </nav>
 
       {/* Content */}
@@ -71,7 +96,7 @@ export default function PaymentPage() {
           <div className="mt-8">
             <p className="text-gray-400 text-sm">ยอดที่ต้องชำระ</p>
             <p className="text-4xl font-black text-[#63e86f] mt-1">
-              500 <span className="text-lg">THB</span>
+              {total.toLocaleString()} <span className="text-lg">THB</span>
             </p>
           </div>
 
@@ -79,20 +104,35 @@ export default function PaymentPage() {
             กรุณาชำระเงินภายใน 09:59
           </p>
 
+          {!canConfirmPayment && (
+            <p className="mt-4 rounded-full bg-red-950/40 px-4 py-2 text-xs text-red-100">
+              ข้อมูลการชำระเงินไม่ครบ กรุณาเลือกที่นั่งใหม่
+            </p>
+          )}
+
           {/* Button */}
           <button
-  type="button"
-  onClick={() => {
-    alert("ระบบตรวจสอบการชำระเงินเรียบร้อยแล้ว");
-    window.location.href = "/User/Home";
-  }}
-  className="mt-6 w-full rounded-full bg-[#63e86f] py-3 font-bold text-black transition hover:bg-[#4ebd5a]"
->
-  เสร็จสิ้น
-</button>
+            type="button"
+            disabled={!canConfirmPayment}
+            onClick={() => {
+              if (!canConfirmPayment) {
+                return;
+              }
+
+              alert("ระบบตรวจสอบการชำระเงินเรียบร้อยแล้ว");
+              router.push("/User/Ticket");
+            }}
+            className={`mt-6 w-full rounded-full py-3 font-bold transition ${
+              canConfirmPayment
+                ? "bg-[#63e86f] text-black hover:bg-[#4ebd5a]"
+                : "cursor-not-allowed bg-[#3f5742] text-[#b7c7b8]"
+            }`}
+          >
+            เสร็จสิ้น
+          </button>
 
           <div className="mt-6 text-xs bg-[#172319] inline-block px-4 py-2 rounded-full">
-            A6, K7
+            Showtime #{showtimeId ?? "-"} • {seatIds.length > 0 ? seatIds.join(", ") : "-"}
           </div>
         </div>
       </section>

@@ -4,7 +4,7 @@ const navItems = [
   { label: "หน้าหลัก", href: "/User/Home" },
   { label: "ภาพยนตร์", href: "/User/Movies" },
   { label: "โปรโมชั่น", href: "/User/Promotion" },
-  { label: "ตั๋วของฉัน", href: "/User/Booking" },
+  { label: "ตั๋วของฉัน", href: "/User/Ticket" },
 ];
 
 const promotions = [
