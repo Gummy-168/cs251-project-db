@@ -2,10 +2,15 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from database import engine, SessionLocal
 from typing import List
+<<<<<<< HEAD
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+=======
+from datetime import date, datetime, timedelta, time
+>>>>>>> 56b8797 (update showtime backend)
 import hashlib
 import schemas
 
@@ -25,6 +30,7 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -115,6 +121,7 @@ def ensure_record_exists(
         raise HTTPException(status_code=404, detail=detail)
 
 
+<<<<<<< HEAD
 def resolve_movie_id(db: Session, payload: schemas.AdminShowtimeCreate) -> tuple[int, int]:
     if payload.MID is not None:
         movie = fetch_one(
@@ -249,6 +256,46 @@ def calculate_promotion_discount(total_price: Decimal, promotion: dict | None) -
 
     final_price = total_price - discount_amount
     return discount_amount.quantize(Decimal("0.01")), final_price.quantize(Decimal("0.01"))
+=======
+def resolve_end_time(
+    db: Session,
+    mid: int,
+    show_date: date,
+    start_time,
+    end_time,
+):
+    if end_time is not None:
+        return end_time
+
+    movie_row = fetch_one(
+        db,
+        "SELECT Duration FROM `Movie` WHERE MID = :mid",
+        {"mid": mid},
+    )
+    if not movie_row:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    duration_minutes = int(movie_row["Duration"])
+    start_dt = datetime.combine(show_date, start_time)
+    computed_end = (start_dt + timedelta(minutes=duration_minutes)).time()
+    return computed_end
+
+
+def normalize_db_time(value):
+    if isinstance(value, timedelta):
+        total_seconds = int(value.total_seconds()) % (24 * 3600)
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        return time(hour=hours, minute=minutes, second=seconds)
+    return value
+
+
+def normalize_showtime_payload(row: dict) -> dict:
+    row["StartTime"] = normalize_db_time(row.get("StartTime"))
+    row["EndTime"] = normalize_db_time(row.get("EndTime"))
+    return row
+>>>>>>> 56b8797 (update showtime backend)
 
 
 def seed_initial_data() -> None:
@@ -320,6 +367,116 @@ def seed_initial_data() -> None:
                     "director": "System Seeder",
                     "score_rating": 0.0,
                     "aid": admin_id,
+                },
+            )
+            db.commit()
+            movie_id = db.execute(
+                text("SELECT MID FROM `Movie` WHERE MName = :name AND AID = :aid LIMIT 1"),
+                {"name": "Welcome Movie", "aid": admin_id},
+            ).mappings().first()["MID"]
+        else:
+            movie_id = existing_movie["MID"]
+
+        branch = fetch_one(
+            db,
+            """
+            SELECT BID
+            FROM `Branch`
+            WHERE BName = :name
+            LIMIT 1
+            """,
+            {"name": "Rangsit"},
+        )
+        if branch:
+            branch_id = branch["BID"]
+        else:
+            branch_result = db.execute(
+                text(
+                    """
+                    INSERT INTO `Branch` (BName, BLocation, BPhoneNumber)
+                    VALUES (:name, :location, :phone)
+                    """
+                ),
+                {
+                    "name": "Rangsit",
+                    "location": "Rangsit, Pathum Thani",
+                    "phone": "0200000001",
+                },
+            )
+            db.commit()
+            branch_id = branch_result.lastrowid
+
+        theater = fetch_one(
+            db,
+            """
+            SELECT ThID
+            FROM `Theater`
+            WHERE BID = :bid AND ThNumber = :number
+            LIMIT 1
+            """,
+            {"bid": branch_id, "number": 1},
+        )
+        if theater:
+            theater_id = theater["ThID"]
+        else:
+            theater_result = db.execute(
+                text(
+                    """
+                    INSERT INTO `Theater` (ThNumber, ThType, Capacity, BID)
+                    VALUES (:number, :type, :capacity, :bid)
+                    """
+                ),
+                {
+                    "number": 1,
+                    "type": "IMAX",
+                    "capacity": 120,
+                    "bid": branch_id,
+                },
+            )
+            db.commit()
+            theater_id = theater_result.lastrowid
+
+        default_showtimes = [
+            {"show_date": "2026-05-02", "start_time": "15:23:00", "end_time": "17:23:00"},
+            {"show_date": "2026-05-02", "start_time": "22:30:00", "end_time": "23:59:00"},
+        ]
+
+        for item in default_showtimes:
+            existing_showtime = fetch_one(
+                db,
+                """
+                SELECT ShowtimeID
+                FROM `Showtime`
+                WHERE ShowDate = :show_date
+                  AND StartTime = :start_time
+                  AND ThID = :thid
+                  AND MID = :mid
+                LIMIT 1
+                """,
+                {
+                    "show_date": item["show_date"],
+                    "start_time": item["start_time"],
+                    "thid": theater_id,
+                    "mid": movie_id,
+                },
+            )
+
+            if existing_showtime:
+                continue
+
+            db.execute(
+                text(
+                    """
+                    INSERT INTO `Showtime` (ShowDate, StartTime, EndTime, ThID, MID)
+                    VALUES (:show_date, :start_time, :end_time, :thid, :mid)
+                    """
+                ),
+                {
+                    "show_date": item["show_date"],
+                    "start_time": item["start_time"],
+                    "end_time": item["end_time"],
+                    "thid": theater_id,
+                    "mid": movie_id,
                 },
             )
             db.commit()
@@ -619,11 +776,66 @@ def delete_movie(movie_id: int, db: Session = Depends(get_db)):
 
 # Admin Endpoints - Showtime
 
+@app.get("/api/admin/showtimes", tags=["Admin - Showtime"])
+def get_admin_showtimes(
+    show_date: str | None = None,
+    date: str | None = None,
+    movie_id: int | None = None,
+    name: str | None = None,
+    movie_name: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Admin Function: Get Showtime list with linked Movie, Theater, and Branch data
+    """
+    query = """
+        SELECT
+            s.ShowtimeID,
+            s.ShowDate,
+            TIME_FORMAT(s.StartTime, '%H:%i') AS StartTime,
+            TIME_FORMAT(s.EndTime, '%H:%i') AS EndTime,
+            m.MID,
+            m.MName,
+            t.ThID,
+            t.ThNumber,
+            t.ThType,
+            b.BID,
+            b.BName,
+            b.BLocation
+        FROM `Showtime` s
+        JOIN `Movie` m ON m.MID = s.MID
+        JOIN `Theater` t ON t.ThID = s.ThID
+        JOIN `Branch` b ON b.BID = t.BID
+        WHERE 1 = 1
+    """
+    params = {}
+
+    effective_show_date = show_date or date
+    effective_movie_name = movie_name or name
+
+    if effective_show_date:
+        query += " AND s.ShowDate = :show_date"
+        params["show_date"] = effective_show_date
+
+    if movie_id:
+        query += " AND m.MID = :movie_id"
+        params["movie_id"] = movie_id
+
+    if effective_movie_name:
+        query += " AND m.MName LIKE :movie_name"
+        params["movie_name"] = f"%{effective_movie_name}%"
+
+    query += " ORDER BY s.ShowDate ASC, b.BID ASC, t.ThNumber ASC, s.StartTime ASC"
+
+    rows = db.execute(text(query), params).mappings().all()
+    return [dict(row) for row in rows]
+
 @app.post("/api/admin/showtimes", response_model=schemas.ShowtimeResponse, tags=["Admin - Showtime"], status_code=status.HTTP_201_CREATED)
 def create_showtime(showtime: schemas.AdminShowtimeCreate, db: Session = Depends(get_db)):
     """
     Admin Function: Add Showtime
     """
+<<<<<<< HEAD
     movie_id, duration_minutes = resolve_movie_id(db, showtime)
     theater_id = resolve_theater_id(db, showtime)
     end_time = showtime.EndTime or compute_end_time(showtime.StartTime, duration_minutes)
@@ -644,8 +856,45 @@ def create_showtime(showtime: schemas.AdminShowtimeCreate, db: Session = Depends
             """
         ),
         payload,
+=======
+    computed_end_time = resolve_end_time(
+        db=db,
+        mid=showtime.MID,
+        show_date=showtime.ShowDate,
+        start_time=showtime.StartTime,
+        end_time=showtime.EndTime,
+>>>>>>> 56b8797 (update showtime backend)
     )
-    db.commit()
+
+    if computed_end_time <= showtime.StartTime:
+        raise HTTPException(
+            status_code=422,
+            detail="EndTime must be later than StartTime on the same date",
+        )
+
+    try:
+        ensure_record_exists(db, "Theater", "ThID", showtime.ThID, "Theater not found")
+        ensure_record_exists(db, "Movie", "MID", showtime.MID, "Movie not found")
+
+        payload = showtime.model_dump()
+        payload["EndTime"] = computed_end_time
+
+        result = db.execute(
+            text(
+                """
+                INSERT INTO `Showtime` (ShowDate, StartTime, EndTime, ThID, MID)
+                VALUES (:ShowDate, :StartTime, :EndTime, :ThID, :MID)
+                """
+            ),
+            payload,
+        )
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Database integrity error: {str(exc.orig)}")
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(exc)}")
 
     created_showtime = fetch_one(
         db,
@@ -656,7 +905,7 @@ def create_showtime(showtime: schemas.AdminShowtimeCreate, db: Session = Depends
         """,
         {"showtime_id": result.lastrowid},
     )
-    return dict(created_showtime)
+    return normalize_showtime_payload(dict(created_showtime))
 
 @app.put("/api/admin/showtimes/{showtime_id}", response_model=schemas.ShowtimeResponse, tags=["Admin - Showtime"])
 def update_showtime(showtime_id: int, showtime: schemas.ShowtimeCreate, db: Session = Depends(get_db)):
@@ -666,6 +915,22 @@ def update_showtime(showtime_id: int, showtime: schemas.ShowtimeCreate, db: Sess
     ensure_record_exists(db, "Showtime", "ShowtimeID", showtime_id, "Showtime not found")
     ensure_record_exists(db, "Theater", "ThID", showtime.ThID, "Theater not found")
     ensure_record_exists(db, "Movie", "MID", showtime.MID, "Movie not found")
+
+    computed_end_time = resolve_end_time(
+        db=db,
+        mid=showtime.MID,
+        show_date=showtime.ShowDate,
+        start_time=showtime.StartTime,
+        end_time=showtime.EndTime,
+    )
+    if computed_end_time <= showtime.StartTime:
+        raise HTTPException(
+            status_code=422,
+            detail="EndTime must be later than StartTime on the same date",
+        )
+
+    payload = showtime.model_dump()
+    payload["EndTime"] = computed_end_time
 
     db.execute(
         text(
@@ -679,7 +944,7 @@ def update_showtime(showtime_id: int, showtime: schemas.ShowtimeCreate, db: Sess
             WHERE ShowtimeID = :showtime_id
             """
         ),
-        {"showtime_id": showtime_id, **showtime.model_dump()},
+        {"showtime_id": showtime_id, **payload},
     )
     db.commit()
 
@@ -692,7 +957,7 @@ def update_showtime(showtime_id: int, showtime: schemas.ShowtimeCreate, db: Sess
         """,
         {"showtime_id": showtime_id},
     )
-    return dict(updated_showtime)
+    return normalize_showtime_payload(dict(updated_showtime))
 
 @app.delete("/api/admin/showtimes/{showtime_id}", tags=["Admin - Showtime"], status_code=status.HTTP_204_NO_CONTENT)
 def delete_showtime(showtime_id: int, db: Session = Depends(get_db)):
