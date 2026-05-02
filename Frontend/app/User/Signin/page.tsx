@@ -1,10 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import {
+  AUTH_COOKIE_NAME,
+  DEFAULT_AUTH_REDIRECT,
+} from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,8 +21,17 @@ export default function LoginPage() {
       return;
     }
 
+    document.cookie = `${AUTH_COOKIE_NAME}=1; path=/; max-age=${60 * 60 * 24 * 7}; samesite=lax`;
+
+    const requestedCallbackUrl = searchParams.get("callbackUrl");
+    const callbackUrl =
+      requestedCallbackUrl && requestedCallbackUrl.startsWith("/")
+        ? requestedCallbackUrl
+        : DEFAULT_AUTH_REDIRECT;
+
     alert("เข้าสู่ระบบสำเร็จ");
-    router.push("/User/Home");
+    router.push(callbackUrl);
+    router.refresh();
   };
 
   return (
