@@ -200,6 +200,10 @@ export default function StatePage() {
 
   const total = selectedSeatData.reduce((sum, seat) => sum + seat.price, 0);
 
+  const standardSeatPrice = seats.find((seat) => seat.seatType === "Regular")?.price ?? 0;
+  const premiumSeatPrice =
+    seats.find((seat) => seat.seatType === "Premium")?.price ?? standardSeatPrice;
+
   function toggleSeat(seatId: string) {
     const seat = seatsById[seatId];
     if (!seat || seat.status === "unavailable") {
@@ -342,12 +346,12 @@ export default function StatePage() {
               <div className="absolute bottom-12 left-1/2 flex w-[88%] -translate-x-1/2 items-center justify-between rounded-full bg-[#17251A] px-12 py-5 text-[13px]">
                 <div className="flex items-center gap-3 text-[#D4E9D2]">
                   <SeatIcon status="standard" small />
-                  <span>STANDARD (200฿)</span>
+                  <span>STANDARD ({standardSeatPrice}฿)</span>
                 </div>
 
                 <div className="flex items-center gap-3 text-[#FFD34E]">
                   <SeatIcon status="premium" small />
-                  <span>PREMIUM (250฿)</span>
+                  <span>PREMIUM ({premiumSeatPrice}฿)</span>
                 </div>
 
                 <div className="flex items-center gap-3 text-[#6FDE76]">

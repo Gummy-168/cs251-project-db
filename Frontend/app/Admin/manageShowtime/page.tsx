@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Search, PlusCircle, Trash2, CalendarPlus, X } from 'lucide-react';
 
 import { deleteAdminShowtime, getAdminShowtimes } from '@/services/api';
@@ -25,7 +24,6 @@ type UiBranchSchedule = {
 };
 
 export default function ManageShowtimePage() {
-  const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [selectedDate, setSelectedDate] = useState('');
@@ -126,11 +124,6 @@ export default function ManageShowtimePage() {
     }
   }
 
-  const handleConfirmDate = () => {
-    setIsModalOpen(false);
-    router.push(`/Admin/manageShowtime/addShowtime?date=${encodeURIComponent(effectiveDate)}`);
-  };
-
   return (
     <>
       <div className="flex-1 overflow-y-auto p-10 flex flex-col">
@@ -160,7 +153,7 @@ export default function ManageShowtimePage() {
             className="bg-emerald-400 hover:bg-emerald-300 transition-colors rounded-xl p-6 flex flex-col items-center justify-center text-[#0a100c] shadow-lg shadow-emerald-900/20 group w-full cursor-pointer"
           >
             <PlusCircle className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" />
-            <span className="font-bold text-lg tracking-wide">Create New Showtime</span>
+            <span className="font-bold text-lg tracking-wide">Change Date</span>
           </button>
         </div>
 
@@ -272,13 +265,6 @@ export default function ManageShowtimePage() {
                 className="px-5 py-2.5 text-gray-400 hover:text-white font-semibold transition-colors"
               >
                 Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDate}
-                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-[#0a100c] font-bold rounded-lg transition-colors"
-              >
-                Confirm Date
               </button>
             </div>
           </div>

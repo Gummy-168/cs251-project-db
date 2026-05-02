@@ -163,7 +163,9 @@ function mapSeatLayout(seats: BackendSeat[]): SeatLayoutSeat[] {
         : Number(seat.Price);
 
     const isPremiumType =
-      seat.SeatType === "VIP" || seat.SeatType === "Honeymoon";
+      seat.SeatType === "Premium" ||
+      seat.SeatType === "VIP" ||
+      seat.SeatType === "Honeymoon";
 
     return {
       id: `${seat.SeatRow}${seat.SeatNumber}`,

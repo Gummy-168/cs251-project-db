@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, CalendarDays, Clapperboard, Save } from 'lucide-react';
-import { createAdminShowtime, getAdminShowtimes, getMovies } from '@/services/api';
+import { createAdminShowtime } from '@/services/api';
 
 const SHOWTIME_STORAGE_KEY = 'emerald_admin_showtimes';
 
@@ -18,21 +18,14 @@ export default function AddShowtimePage() {
   const [theaterInput, setTheaterInput] = useState('1');
   const [showtimeInput, setShowtimeInput] = useState('');
   const [priceInput, setPriceInput] = useState('240');
+  const [premiumExtraPriceInput, setPremiumExtraPriceInput] = useState('50');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const isValidShowtime = useMemo(() => /^([01]\d|2[0-3]):([0-5]\d)$/.test(showtimeInput), [showtimeInput]);
-
-  function buildEndTime(startTime: string) {
-    const [hours, minutes] = startTime.split(':').map(Number);
-    const start = new Date(2000, 0, 1, hours, minutes, 0);
-    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
-    const isCrossingDay = end.getDate() !== start.getDate();
-    if (isCrossingDay) {
-      return null;
-    }
-    return `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}:00`;
-  }
+  const isValidShowtime = useMemo(
+    () => /^([01]\d|2[0-3]):([0-5]\d)$/.test(showtimeInput),
+    [showtimeInput]
+  );
 
   async function handleSave(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,6 +34,7 @@ export default function AddShowtimePage() {
     const branchValue = branchInput.trim();
     const theaterValue = theaterInput.trim();
     const priceNumber = Number(priceInput);
+    const premiumExtraPriceNumber = Number(premiumExtraPriceInput);
 
     if (!movieValue) {
       setError('กรุณาระบุชื่อหนังหรือ Movie ID');
@@ -67,7 +61,13 @@ export default function AddShowtimePage() {
       return;
     }
 
+    if (!Number.isFinite(premiumExtraPriceNumber) || premiumExtraPriceNumber < 0) {
+      setError('กรุณาระบุราคาเพิ่มสำหรับ Premium ให้ถูกต้อง');
+      return;
+    }
+
     const showDate = selectedDate ?? new Date().toISOString().slice(0, 10);
+
     setSaving(true);
     setError(null);
 
@@ -78,6 +78,8 @@ export default function AddShowtimePage() {
         Theater: theaterValue,
         ShowDate: showDate,
         StartTime: showtimeInput,
+        Price: priceNumber,
+        PremiumExtraPrice: premiumExtraPriceNumber,
       });
 
       try {
@@ -85,8 +87,11 @@ export default function AddShowtimePage() {
         const parsedSchedule = rawSchedule ? JSON.parse(rawSchedule) : [];
 
         if (Array.isArray(parsedSchedule)) {
-          const normalizedBranch = branchValue.charAt(0).toUpperCase() + branchValue.slice(1).toLowerCase();
+          const normalizedBranch =
+            branchValue.charAt(0).toUpperCase() + branchValue.slice(1).toLowerCase();
+
           const theaterLabel = `Theater ${theaterValue}`;
+
           const showtimeEntry = {
             id: `db-showtime-${createdShowtime.ShowtimeID}`,
             time: createdShowtime.StartTime.slice(0, 5),
@@ -102,6 +107,7 @@ export default function AddShowtimePage() {
 
           if (branchIndex >= 0) {
             const branch = parsedSchedule[branchIndex];
+
             const theaterIndex = Array.isArray(branch.theaters)
               ? branch.theaters.findIndex(
                   (theater: { id?: string }) =>
@@ -151,15 +157,25 @@ export default function AddShowtimePage() {
 
       router.push('/Admin/manageShowtime');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถบันทึกรอบฉายลงฐานข้อมูลได้');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'ไม่สามารถบันทึกรอบฉายลงฐานข้อมูลได้'
+      );
     } finally {
       setSaving(false);
     }
   }
 
+  const inputClass =
+    'h-12 w-full rounded-lg border border-white/10 bg-[#445642]/80 px-4 text-sm text-gray-100 outline-none placeholder:text-[#a8b3a5] transition focus:border-emerald-400 focus:bg-[#40533f] focus:ring-2 focus:ring-emerald-400/15';
+
+  const labelClass =
+    'flex min-h-[44px] items-start text-sm font-bold uppercase tracking-[0.2em] text-emerald-400';
+    
   return (
     <div className="relative flex-1 overflow-y-auto bg-[radial-gradient(circle_at_bottom,_rgba(61,88,64,0.34),_rgba(25,39,28,1)_54%)] text-gray-100">
-      <div className="mx-auto min-h-full w-full max-w-[1180px] px-6 pb-28 pt-8 md:px-10 lg:px-12">
+      <div className="mx-auto min-h-full w-full max-w-[1180px] px-6 pb-20 pt-8 md:px-10 lg:px-12">
         <Link
           href="/Admin/manageShowtime"
           className="inline-flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.18em] text-gray-300 transition hover:text-emerald-400"
@@ -168,7 +184,7 @@ export default function AddShowtimePage() {
           Back to manage showtime
         </Link>
 
-        <div className="mx-auto mt-16 w-full max-w-[1120px]">
+        <div className="mx-auto mt-10 w-full max-w-[1120px]">
           <h1 className="text-4xl font-semibold tracking-tight text-emerald-500">
             เพิ่มรายละเอียดรอบฉาย
           </h1>
@@ -178,28 +194,27 @@ export default function AddShowtimePage() {
           </p>
 
           {selectedDate ? (
-            <div className="mt-5 inline-flex items-center gap-2 text-sm text-emerald-300/85">
+            <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-400/5 px-4 py-2 text-sm text-emerald-300/90">
               <CalendarDays className="h-4 w-4" />
               <span>{selectedDate}</span>
             </div>
           ) : null}
         </div>
 
-        <section className="mx-auto mt-10 w-full max-w-[1120px] rounded-[8px] border border-[#556953] bg-[#52634f]/92 p-5 shadow-[0_24px_55px_rgba(0,0,0,0.24)] md:p-7">
+        <section className="mx-auto mt-8 w-full max-w-[1120px] rounded-2xl border border-emerald-300/10 bg-[#50634e]/90 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.32)] backdrop-blur md:p-8">
           <form className="space-y-7" onSubmit={handleSave}>
             <label className="block space-y-3">
-              <span className="text-sm font-bold uppercase tracking-[0.2em] text-emerald-400">
-                Name Movie (ชื่อหนัง)
-              </span>
+              <span className={labelClass}>Name Movie (ชื่อหนัง)</span>
 
               <div className="relative">
-                <Clapperboard className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#95a191]" />
+                <Clapperboard className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#a8b3a5]" />
+
                 <input
                   type="text"
                   value={movieInput}
                   onChange={(event) => setMovieInput(event.target.value)}
                   placeholder="ระบุ Movie ID หรือ Movie Name"
-                  className="h-12 w-full rounded-[4px] border border-[#6b7c68] bg-[#536550] pl-11 pr-4 text-sm text-gray-100 outline-none placeholder:text-[#a1ac9f] focus:border-emerald-500"
+                  className="h-12 w-full rounded-lg border border-white/10 bg-[#445642]/80 pl-11 pr-4 text-sm text-gray-100 outline-none placeholder:text-[#a8b3a5] transition focus:border-emerald-400 focus:bg-[#40533f] focus:ring-2 focus:ring-emerald-400/15"
                   required
                 />
               </div>
@@ -207,56 +222,52 @@ export default function AddShowtimePage() {
 
             <div className="grid gap-5 md:grid-cols-2">
               <label className="block space-y-3">
-                <span className="text-sm font-bold uppercase tracking-[0.2em] text-emerald-400">
-                  Branch (สาขา)
-                </span>
+                <span className={labelClass}>Branch (สาขา)</span>
 
                 <input
                   type="text"
                   value={branchInput}
                   onChange={(event) => setBranchInput(event.target.value)}
                   placeholder="RANGSIT"
-                  className="h-12 w-full rounded-[4px] border border-[#6b7c68] bg-[#536550] px-4 text-sm text-gray-100 outline-none placeholder:text-[#a1ac9f] focus:border-emerald-500"
+                  className={inputClass}
                   required
                 />
               </label>
 
               <label className="block space-y-3">
-                <span className="text-sm font-bold uppercase tracking-[0.2em] text-emerald-400">
-                  Theater (โรงภาพยนตร์)
-                </span>
+                <span className={labelClass}>Theater (โรงภาพยนตร์)</span>
 
                 <input
                   type="text"
                   value={theaterInput}
-                  onChange={(event) => setTheaterInput(event.target.value.replace(/[^0-9A-Za-z\s-]/g, ''))}
+                  onChange={(event) =>
+                    setTheaterInput(
+                      event.target.value.replace(/[^0-9A-Za-z\s-]/g, '')
+                    )
+                  }
                   placeholder="1"
-                  className="h-12 w-full rounded-[4px] border border-[#6b7c68] bg-[#536550] px-4 text-sm text-gray-100 outline-none placeholder:text-[#a1ac9f] focus:border-emerald-500"
+                  className={inputClass}
                   required
                 />
               </label>
             </div>
 
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-5 md:grid-cols-3">
               <label className="block space-y-3">
-                <span className="text-sm font-bold uppercase tracking-[0.2em] text-emerald-400">
-                  Showtime (เวลาที่ฉาย)
-                </span>
+                <span className={labelClass}>Showtime (เวลาที่ฉาย)</span>
 
                 <input
                   type="time"
                   value={showtimeInput}
                   onChange={(event) => setShowtimeInput(event.target.value)}
-                  className="h-12 w-full rounded-[4px] border border-[#6b7c68] bg-[#536550] px-4 text-center text-sm tracking-[0.2em] text-gray-100 outline-none placeholder:text-[#a1ac9f] focus:border-emerald-500"
+                  className="h-12 w-full rounded-lg border border-white/10 bg-[#445642]/80 px-4 text-center text-sm tracking-[0.2em] text-gray-100 outline-none transition focus:border-emerald-400 focus:bg-[#40533f] focus:ring-2 focus:ring-emerald-400/15"
                   step={60}
                   required
                 />
               </label>
 
               <label className="block space-y-3">
-                <span className="text-sm font-bold uppercase tracking-[0.2em] text-emerald-400">
-                  Price (ราคา)
-                </span>
+                <span className={labelClass}>Standard Price (ราคาปกติ)</span>
 
                 <div className="relative">
                   <input
@@ -266,7 +277,32 @@ export default function AddShowtimePage() {
                     value={priceInput}
                     onChange={(event) => setPriceInput(event.target.value)}
                     placeholder="240"
-                    className="h-12 w-full rounded-[4px] border border-[#6b7c68] bg-[#536550] px-4 pr-16 text-sm text-gray-100 outline-none placeholder:text-[#a1ac9f] focus:border-emerald-500"
+                    className="h-12 w-full rounded-lg border border-white/10 bg-[#445642]/80 px-4 pr-16 text-sm text-gray-100 outline-none placeholder:text-[#a8b3a5] transition focus:border-emerald-400 focus:bg-[#40533f] focus:ring-2 focus:ring-emerald-400/15"
+                    required
+                  />
+
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[#d7ddd6]">
+                    บาท
+                  </span>
+                </div>
+              </label>
+
+              <label className="block space-y-3">
+                <span className={labelClass}>
+                  Premium Extra (ราคาเพิ่ม Premium)
+                </span>
+
+                <div className="relative">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    value={premiumExtraPriceInput}
+                    onChange={(event) =>
+                      setPremiumExtraPriceInput(event.target.value)
+                    }
+                    placeholder="50"
+                    className="h-12 w-full rounded-lg border border-white/10 bg-[#445642]/80 px-4 pr-16 text-sm text-gray-100 outline-none placeholder:text-[#a8b3a5] transition focus:border-emerald-400 focus:bg-[#40533f] focus:ring-2 focus:ring-emerald-400/15"
                     required
                   />
 
@@ -278,10 +314,12 @@ export default function AddShowtimePage() {
             </div>
 
             {error ? (
-              <p className="rounded-md border border-red-400/25 bg-red-950/30 px-4 py-3 text-sm text-red-100">{error}</p>
+              <p className="rounded-lg border border-red-400/25 bg-red-950/30 px-4 py-3 text-sm text-red-100">
+                {error}
+              </p>
             ) : null}
 
-            <div className="fixed bottom-6 right-6 z-20">
+            <div className="flex justify-end pt-2">
               <button
                 type="submit"
                 disabled={saving}

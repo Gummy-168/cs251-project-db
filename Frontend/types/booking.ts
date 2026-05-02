@@ -173,6 +173,8 @@ export interface AdminShowtimeCreatePayload {
   ShowDate: string;
   StartTime: string;
   EndTime?: string;
+  Price?: number;
+  PremiumExtraPrice?: number;
 }
 
 export interface BackendAdminShowtimeRecord {
