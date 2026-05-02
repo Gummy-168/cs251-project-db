@@ -1,4 +1,7 @@
-'use client'; // Added this so we can track the current URL path
+'use client';
+
+// Inside app/Admin/layout.tsx - Update only the isActive function
+const isActive = (path: string) => pathname.startsWith(path);
 
 import React from 'react';
 import Link from 'next/link';
