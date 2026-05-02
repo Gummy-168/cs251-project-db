@@ -1,4 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+
+import { getMovies } from "@/services/api";
+import type { MovieCard } from "@/types/movie";
+
 export default function HomePage() {
   const promotions = [
     {
@@ -21,48 +28,6 @@ export default function HomePage() {
     },
   ];
 
-  const movies = [
-    {
-      title: "Jujutsu Kaisen 0",
-      image: "/image/jujutsu.jpg",
-    },
-    {
-      title: "F1 The Movie",
-      image: "/image/f1.jpg",
-    },
-    {
-      title: "LEGO The Second Part",
-      image: "/image/lego.jpg",
-    },
-    {
-      title: "The Super Mario Galaxy",
-      image: "/image/mario.jpg",
-    },
-  ];
-
-  const topMovies = [
-    {
-      title: "Jujutsu Kaisen 0",
-      image: "/image/jujutsu.jpg",
-    },
-    {
-      title: "Old Town Stories",
-      image: "/image/Old Town Stories.png",
-    },
-    {
-      title: "Whispers in the Woods",
-      image: "/image/Whispers in the Woods.png",
-    },
-    {
-      title: "Beyond the Lens",
-      image: "/image/Beyond the Lens.png",
-    },
-    {
-      title: "Summer Blockbuster",
-      image: "/image/Summer Blockbuster.png",
-    },
-  ];
-
   const categories = [
     "All",
     "Action",
@@ -74,6 +39,35 @@ export default function HomePage() {
     "Comedy",
   ];
 
+  const [movies, setMovies] = useState<MovieCard[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadMovies() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getMovies();
+        setMovies(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "ไม่สามารถโหลดข้อมูลภาพยนตร์ได้");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadMovies();
+  }, []);
+
+  const nowPlayingMovies = useMemo(() => movies.slice(0, 4), [movies]);
+
+  const topMovies = useMemo(() => {
+    return [...movies]
+      .sort((a, b) => (b.scoreRating ?? 0) - (a.scoreRating ?? 0))
+      .slice(0, 5);
+  }, [movies]);
+
   return (
     <main className="min-h-screen w-full overflow-x-hidden bg-[#06160a] text-white">
       <nav className="flex h-[72px] w-full items-center bg-[#06160a] px-8">
@@ -82,29 +76,29 @@ export default function HomePage() {
         </h1>
 
         <div className="flex items-center gap-10 text-sm font-medium text-gray-200">
-          <a href="/User/Home" className="transition hover:text-[#63e86f]">
+          <Link href="/User/Home" className="transition hover:text-[#63e86f]">
             หน้าหลัก
-          </a>
-          <a href="/User/Movies" className="transition hover:text-[#63e86f]">
+          </Link>
+          <Link href="/User/Movies" className="transition hover:text-[#63e86f]">
             ภาพยนตร์
-          </a>
-          <a
+          </Link>
+          <Link
             href="/User/Promotion"
             className="transition hover:text-[#63e86f]"
           >
             โปรโมชั่น
-          </a>
-          <a href="/User/Ticket" className="transition hover:text-[#63e86f]">
+          </Link>
+          <Link href="/User/Ticket" className="transition hover:text-[#63e86f]">
             ตั๋วของฉัน
-          </a>
+          </Link>
         </div>
 
-        <a
-  href="/User/Profile"
-  className="ml-auto flex h-7 w-7 items-center justify-center rounded-full border border-[#63e86f] text-sm text-[#63e86f] transition hover:bg-[#63e86f] hover:text-[#06160a]"
->
-  ◎
-</a>
+        <Link
+          href="/User/Profile"
+          className="ml-auto flex h-7 w-7 items-center justify-center rounded-full border border-[#63e86f] text-sm text-[#63e86f] transition hover:bg-[#63e86f] hover:text-[#06160a]"
+        >
+          ◎
+        </Link>
       </nav>
 
       <section className="grid w-full grid-cols-[minmax(0,1fr)_290px] gap-8 px-8 pb-12 pt-10">
@@ -113,12 +107,9 @@ export default function HomePage() {
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-4xl font-black">โปรโมชั่นพิเศษ</h2>
 
-              <Link
-  href="/User/Movies"
-  className="text-base font-bold text-[#63e86f]"
->
-  ดูทั้งหมด
-</Link>
+              <Link href="/User/Movies" className="text-base font-bold text-[#63e86f]">
+                ดูทั้งหมด
+              </Link>
             </div>
 
             <div className="grid grid-cols-3 gap-7">
@@ -155,36 +146,56 @@ export default function HomePage() {
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-4xl font-black">ภาพยนตร์ที่กำลังฉาย</h2>
 
-              <a
+              <Link
                 href="/User/Movies"
                 className="text-base font-bold text-[#63e86f]"
               >
                 ดูทั้งหมด
-              </a>
+              </Link>
             </div>
 
-            <div className="grid grid-cols-4 gap-8">
-              {movies.map((movie) => (
-                <article key={movie.title} className="w-full">
-                  <div className="mb-4 flex h-[420px] w-full items-center justify-center overflow-hidden rounded-[22px] bg-[#172319]">
-                    <img
-                      src={movie.image}
-                      alt={movie.title}
-                     className="h-full w-full object-contain object-center"
-                    />
-                  </div>
+            {loading && (
+              <div className="rounded-2xl border border-white/10 bg-[#172319] px-6 py-5 text-sm text-white/70">
+                กำลังโหลดข้อมูลภาพยนตร์...
+              </div>
+            )}
 
-                  <h3 className="mb-4 text-base font-black">{movie.title}</h3>
+            {error && (
+              <div className="rounded-2xl border border-red-400/30 bg-red-950/30 px-6 py-5 text-sm text-red-100">
+                ไม่สามารถโหลดข้อมูลภาพยนตร์ได้: {error}
+              </div>
+            )}
 
-                  <Link
-                    href="/User/Movies"
-                    className="flex w-full items-center justify-center rounded-full bg-[#63e86f] py-4 text-sm font-black text-black transition hover:bg-[#4ebd5a]"
-                  >
-                    จองตั๋ว
-                  </Link>
-                </article>
-              ))}
-            </div>
+            {!loading && !error && nowPlayingMovies.length === 0 && (
+              <div className="rounded-2xl border border-white/10 bg-[#172319] px-6 py-5 text-sm text-white/70">
+                ขณะนี้ยังไม่มีภาพยนตร์เข้าฉาย
+              </div>
+            )}
+
+            {!loading && !error && nowPlayingMovies.length > 0 && (
+              <div className="grid grid-cols-4 gap-8">
+                {nowPlayingMovies.map((movie) => (
+                  <article key={movie.id} className="w-full">
+                    <div className="mb-4 flex h-[420px] w-full items-center justify-center overflow-hidden rounded-[22px] bg-[#172319]">
+                      <img
+                        src={movie.image}
+                        alt={movie.title}
+                        className="h-full w-full object-contain object-center"
+                      />
+                    </div>
+
+                    <h3 className="mb-4 text-base font-black">{movie.title}</h3>
+
+                    <Link
+                      href={`/User/Booking?movieId=${movie.id}`}
+                      className="flex w-full items-center justify-center rounded-full bg-[#63e86f] py-4 text-sm font-black text-black transition hover:bg-[#4ebd5a]"
+                    >
+                      จองตั๋ว
+                    </Link>
+                  </article>
+                ))}
+              </div>
+            )}
           </section>
         </div>
 
@@ -194,7 +205,7 @@ export default function HomePage() {
 
             <div className="space-y-5">
               {topMovies.map((movie, index) => (
-                <div key={movie.title} className="flex items-center gap-4">
+                <div key={movie.id} className="flex items-center gap-4">
                   <div className="w-9 text-4xl font-black text-yellow-400">
                     {index + 1}
                   </div>
@@ -205,9 +216,7 @@ export default function HomePage() {
                     className="h-[62px] w-[46px] rounded-md object-cover object-center"
                   />
 
-                  <p className="text-sm font-black leading-tight">
-                    {movie.title}
-                  </p>
+                  <p className="text-sm font-black leading-tight">{movie.title}</p>
                 </div>
               ))}
             </div>
