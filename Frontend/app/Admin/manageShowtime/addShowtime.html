@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Emerald Cinema - Add New Showtime</title>
     <link rel="stylesheet" href="addShowtime.css">
-    <link rel="stylesheet" href="manageShowtime.css"> 
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="manageShowtime.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
 </head>
+
 <body class="dashboard-body">
 
     <div class="sidebar">
@@ -26,7 +29,7 @@
 
     <main class="content">
         <a href="manageShowtime.html" class="back-link">← BACK TO MANAGE SHOWTIME</a>
-        
+
         <div class="form-header">
             <h2>เพิ่มรายละเอียดรอบฉาย</h2>
             <p>Fill in the screening details to add a new showtime to the schedule.</p>
@@ -44,7 +47,21 @@
 
                 <div class="input-group">
                     <label>BRANCH (สาขา)</label>
-                    <input type="text" id="branchInput" value="RANGSIT">
+                    <select id="branchInput" class="form-control-select">
+                        <option value="RANGSIT">RANGSIT</option>
+                        <option value="SILOM">SILOM</option>
+                        <option value="SUKHUMVIT">SUKHUMVIT</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label>FORMAT (ประเภทการฉาย)</label>
+                    <select id="formatInput" class="form-control-select">
+                        <option value="DIGITAL 2D">DIGITAL 2D</option>
+                        <option value="DIGITAL 3D">DIGITAL 3D</option>
+                        <option value="EXECUTIVE SUITE">EXECUTIVE SUITE</option>
+                        <option value="IMAX">IMAX</option>
+                    </select>
                 </div>
 
                 <div class="input-group">
@@ -80,4 +97,5 @@
 
     <script src="addShowtime.js"></script>
 </body>
+
 </html>

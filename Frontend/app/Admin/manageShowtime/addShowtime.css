@@ -172,3 +172,22 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 input[type="time"]::-webkit-calendar-picker-indicator:hover {
     opacity: 1; /* ชัดขึ้นเมื่อเอาเมาส์ไปวาง */
 }
+
+/*New branch and format*/
+.form-control-select {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 12px 15px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 1rem;
+    appearance: none; /* เอาลูกศรเดิมออกถ้าต้องการแต่งเอง */
+    cursor: pointer;
+}
+
+/* ตกแต่งสีพื้นหลังของ Option ให้มองเห็นง่าย */
+select option {
+    background: #273028;
+    color: #fff;
+}
