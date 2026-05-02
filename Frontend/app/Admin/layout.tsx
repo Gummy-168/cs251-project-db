@@ -1,8 +1,5 @@
 'use client';
 
-// Inside app/Admin/layout.tsx - Update only the isActive function
-const isActive = (path: string) => pathname.startsWith(path);
-
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -13,10 +10,9 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname(); // Gets the current active URL
+  const pathname = usePathname();
 
-  // Helper function: returns true if the current path matches the link
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) => pathname.startsWith(path);
 
   return (
     <div className="flex h-screen bg-[#0d1510] text-gray-200 font-sans overflow-hidden">
@@ -56,7 +52,7 @@ export default function AdminLayout({
             </Link>
 
             <Link 
-              href="#" 
+              href="/Admin/manageShowtime" 
               className={`flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors ${
                 isActive('/Admin/manageShowtime') 
                   ? 'text-emerald-400 bg-[#1e3326] border-l-4 border-emerald-500' 
