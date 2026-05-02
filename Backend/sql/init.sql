@@ -150,3 +150,16 @@ CREATE TABLE IF NOT EXISTS Ticket (
         ON DELETE RESTRICT
 );
 
+-- Table: Payment
+CREATE TABLE IF NOT EXISTS Payment (
+    PaymentID INT AUTO_INCREMENT PRIMARY KEY,
+    Amount DECIMAL(10,2) NOT NULL CHECK (Amount >= 0),
+    PaymentStatus VARCHAR(20) NOT NULL CHECK (PaymentStatus IN ('Pending', 'Completed', 'Failed')),
+    PaymentDate DATE NOT NULL,
+    PaymentMethod VARCHAR(50) NOT NULL,
+    BookingID INT NOT NULL,
+    CONSTRAINT fk_payment_booking
+        FOREIGN KEY (BookingID) REFERENCES Booking(BookingID)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+)
